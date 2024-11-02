@@ -52,28 +52,28 @@ class Sources(models.Model):
             trimmed_title = slugify(self.title[:32])
             self.slug = f"{trimmed_title}-{uuid.uuid4().hex[:8]}"
 
-        # Validate PDF format
+        # Validation of PDF format
         if not self.pdf.name.endswith('.pdf'):
             raise ValidationError("File must be a PDF")
 
-        # Sanitize PDF
+        # Sanitizion of PDF
         sanitized_pdf = PyPDF2.PdfWriter()
         try:
             pdf_reader = PyPDF2.PdfReader(self.pdf)
             for page_num in range(len(pdf_reader.pages)):
                 sanitized_pdf.add_page(pdf_reader.pages[page_num])
 
-            # Save sanitized file temporarily
+            # Saving sanitized file temporarily
             temp_path = f"/tmp/{self.slug}.pdf"
             with open(temp_path, "wb") as output_file:
                 sanitized_pdf.write(output_file)
 
-            # Move sanitized file to 'resources/' path in the media location
+            # Moving sanitized file to 'resources/' path in the media location
             resources_path = os.path.join('resources', f"{self.slug}.pdf")
             with open(temp_path, "rb") as temp_file:
                 self.pdf.save(resources_path, File(temp_file), save=False)
 
-            # Clean up the temporary file
+            # Cleaning up the temporary file
             os.remove(temp_path)
 
         except Exception as e:
@@ -93,7 +93,6 @@ class Sources(models.Model):
         constraints = [
             models.CheckConstraint(check=models.Q(pdf__iendswith='.pdf'), name='pdf_format_check')
         ]
-
 
 class Note(models.Model):
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, related_name='notes')

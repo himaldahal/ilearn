@@ -7,7 +7,7 @@ SECRET_KEY = 'django-insecure-qr&l2z=f1r9j=n(%6v-gf7l0_hucrufj_(cj6&d&$)(p5hp4mo
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 MY_APPS = [
@@ -117,3 +117,15 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'media/')
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+#CSP configs 
+CSP_FRAME_ANCESTORS = ["'self'",]
+
+#login url
+LOGIN_URL = '/auth/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+LOGOUT_URL = '/auth/logout/'
+
+X_FRAME_OPTIONS = 'SAMEORIGIN'

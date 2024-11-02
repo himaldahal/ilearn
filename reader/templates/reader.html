@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% block title %} {{ project.title }} {% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="modal fade" id="membersmodal" tabindex="-1" aria-labelledby="membersLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="membersLabel">Members</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item fw-bold h4">
+                            <i class="bi bi-person-bounding-box"></i> {{ project.user.first_name }} {{ project.user.last_name }}
+                        </li>
+                        {% for user in project.allowed_users.all %}
+                            <li class="list-group-item h5">
+                                <i class="bi bi-person-circle text-secondary"></i> {{ user.first_name }} {{ user.last_name }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex">
+        <div id="sidebar" class="collapsed">
+            <div class="sidebar-header">
+                <h3 class="mb-4"><i class="bi bi-book"></i><span>iLearn</span></h3>
+            </div>
+            <div id="alert-container" class="mb-3"></div>
+            <div class="mb-3">
+                <form id="uploadForm" enctype="multipart/form-data" class="pe-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="project_slug" value="{{ project.slug }}">
+                    <input name="pdf_file" id="pdf_file" type="file" accept=".pdf" class="d-none" required>
+                </form>
+                <button class="btn btn-lg btn-dark btn-outline-secondary text-light w-100" id="uploadBtn">
+                    Upload <i class="bi bi-cloud-upload"></i>
+                </button>
+            </div>
+            
+            <!-- File List -->
+            <div class="file-list-container">
+                <ul class="nav flex-column" id="file-list">
+                    <li class="nav-item text-center text-muted p-3">Loading files...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div id="main-content" class="flex-grow-1">
+            <!-- Header -->
+            <div class="content-header sticky-top bg-light">
+                <button id="sidebar-toggle" class="btn btn-outline-secondary">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h5 class="text-break mb-0 mx-3">{{ project.title }}</h5>
+                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#membersmodal">
+                    <i class="bi bi-people-fill"></i>
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="row g-4 p-3">
+                <!-- PDF Viewer -->
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body p-0">
+                            <iframe id="pdfViewer" name="bookf" class="w-100" style="height:85vh;">
+                                <p>Please select a PDF to view</p>
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div class="col-lg-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">Quick Notes</h5>
+                                <div class="d-flex align-items-center">
+                                    <span id="saveStatus" class="me-2"></span>
+                                    <button id="saveNotes" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="note-section" class="form-control" contenteditable="true" style="min-height: 300px;">
+                                Start typing your notes here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+$(document).ready(function() {
+    // Constants and Cached Elements
+    const ELEMENTS = {
+        sidebar: $('#sidebar'),
+        mainContent: $('#main-content'),
+        sidebarToggle: $('#sidebar-toggle'),
+        fileList: $('#file-list'),
+        noteSection: $('#note-section'),
+        pdfViewer: $('#pdfViewer'),
+        uploadBtn: $('#uploadBtn'),
+        uploadForm: $('#uploadForm'),
+        pdfFile: $('#pdf_file'),
+        saveStatus: $('#saveStatus'),
+        saveNotesBtn: $('#saveNotes')
+    };
+
+    const CONFIG = {
+        apiUrls: {
+            fileListing: "{% url 'file_listing' slug=project.slug %}",
+            uploadPdf: "{% url 'upload_pdf' %}",
+            saveNotes: "#"  // Assuming this endpoint exists
+        },
+        autoSaveDelay: 1000,
+        alertDuration: 3000
+    };
+
+    // Alert System
+    const AlertSystem = {
+        show: function(type, message) {
+            const alertClass = type === 'error' ? 'danger' : type;
+            const alertHtml = `
+                <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            const $alert = $(alertHtml);
+            $('#alert-container').append($alert);
+            
+            setTimeout(() => $alert.alert('close'), CONFIG.alertDuration);
+        }
+    };
+
+    // File Management System
+    const FileManager = {
+        fetchFiles: function() {
+            $.ajax({
+                url: CONFIG.apiUrls.fileListing,
+                method: 'GET',
+                success: (data) => this.updateFileList(data),
+                error: () => AlertSystem.show('error', 'Failed to load files')
+            });
+        },
+
+        updateFileList: function(files) {
+            ELEMENTS.fileList.empty();
+            
+            if (!files?.length) {
+                ELEMENTS.fileList.append('<li class="nav-item text-center text-muted p-3">No files available</li>');
+                return;
+            }
+
+            files.forEach(file => {
+                const $fileItem = $(`
+                    <li class="nav-item">
+                        <a href="#" class="nav-link file-item" data-filepath="/media/${file.pdf}">
+                            <i class="bi bi-file-earmark-pdf"></i> 
+                            <span>${file.title}</span>
+                        </a>
+                    </li>
+                `);
+                ELEMENTS.fileList.append($fileItem);
+            });
+
+            // Load first file by default
+            ELEMENTS.fileList.find('.file-item').first().click();
+        },
+
+        loadPdf: function(filepath) {
+            ELEMENTS.pdfViewer.attr('src', filepath)
+                .on('error', () => AlertSystem.show('error', 'Failed to load PDF'));
+        },
+
+        handleFileUpload: function(event) {
+            const file = ELEMENTS.pdfFile[0].files[0];
+            if (!file) return;
+
+            if (file.type !== 'application/pdf') {
+                AlertSystem.show('error', 'Please select a valid PDF file');
+                return;
+            }
+
+            const formData = new FormData(ELEMENTS.uploadForm[0]);
+            
+            $.ajax({
+                url: CONFIG.apiUrls.uploadPdf,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: (response) => {
+                    AlertSystem.show('success', 'File uploaded successfully');
+                    this.fetchFiles();
+                },
+                error: (error) => AlertSystem.show('error', 'Upload failed: ' + error.responseText)
+            });
+        }
+    };
+
+    // Notes Management System
+    const NotesManager = {
+        saveTimeout: null,
+
+        init: function() {
+            this.loadSavedNotes();
+            this.bindEvents();
+        },
+
+        bindEvents: function() {
+            ELEMENTS.noteSection.on('input', () => this.triggerAutoSave());
+            ELEMENTS.saveNotesBtn.on('click', () => this.saveNotes());
+        },
+
+        triggerAutoSave: function() {
+            ELEMENTS.saveStatus.text('Typing...');
+            if (this.saveTimeout) clearTimeout(this.saveTimeout);
+            this.saveTimeout = setTimeout(() => this.saveNotes(), CONFIG.autoSaveDelay);
+        },
+
+        saveNotes: function() {
+            const content = ELEMENTS.noteSection.html().trim();
+            if (!content) return;
+
+            ELEMENTS.saveStatus.text('Saving...');
+            
+            $.ajax({
+                url: CONFIG.apiUrls.saveNotes,
+                method: 'POST',
+                headers: { 'X-CSRFToken': this.getCSRFToken() },
+                data: JSON.stringify({ content }),
+                contentType: 'application/json',
+                success: () => {
+                    ELEMENTS.saveStatus.text('Saved').addClass('text-success');
+                    setTimeout(() => ELEMENTS.saveStatus.text(''), 1000);
+                },
+                error: () => {
+                    ELEMENTS.saveStatus.text('Save failed').addClass('text-danger');
+                }
+            });
+        },
+
+        loadSavedNotes: function() {
+            // Implement notes loading logic here
+        },
+
+        getCSRFToken: function() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+    };
+
+    // Event Bindings
+    function initializeEventListeners() {
+        ELEMENTS.sidebarToggle.on('click', () => {
+            ELEMENTS.sidebar.toggleClass('collapsed');
+            ELEMENTS.mainContent.toggleClass('collapsed');
+        });
+
+        ELEMENTS.fileList.on('click', '.file-item', function(e) {
+            e.preventDefault();
+            ELEMENTS.fileList.find('.file-item').removeClass('active');
+            $(this).addClass('active');
+            FileManager.loadPdf($(this).data('filepath'));
+        });
+
+        ELEMENTS.uploadBtn.on('click', () => ELEMENTS.pdfFile.click());
+        ELEMENTS.pdfFile.on('change', (e) => FileManager.handleFileUpload(e));
+    }
+
+    function initialize() {
+        initializeEventListeners();
+        FileManager.fetchFiles();
+        NotesManager.init();
+    }
+
+    initialize();
+});
+</script>
+
+<style>
+#sidebar {
+    width: 280px;
+    min-height: 100vh;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    padding: 1rem;
+}
+
+#sidebar.collapsed {
+    margin-left: -280px;
+}
+
+#main-content {
+    transition: all 0.3s;
+    width: calc(100% - 280px);
+}
+
+#main-content.collapsed {
+    width: 100%;
+}
+
+.content-header {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: #495057;
+    text-decoration: none;
+}
+
+.file-item:hover {
+    background-color: #e9ecef;
+}
+
+.file-item.active {
+    background-color: #e9ecef;
+    color: #dc3545;
+}
+
+.file-item i {
+    margin-right: 0.5rem;
+}
+
+#note-section {
+    border: 1px solid #dee2e6;
+    padding: 1rem;
+    min-height: 200px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+#alert-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1050;
+}
+
+.save-feedback {
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
