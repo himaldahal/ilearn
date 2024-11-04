@@ -341,6 +341,9 @@
             transform: scale(1.05);
         }
     </style>
+    <script>
+        var fm;
+    </script>
 {% endblock %}
 {% block body %}
 <div class="container-fluid">
@@ -431,7 +434,6 @@
                                 Start typing your notes here...
                                 {% else%}
                                 {{ note.content }}
-
                                 {% endif %}
 
                             </div>
@@ -445,285 +447,8 @@
 </div>
 {% endblock %}
 {% block script %}
-{% comment %} <script>
-    $(document).ready(function() {
-        let sourceslug = null;
-
-        const ELEMENTS = {
-            sidebar: $('#sidebar'),
-            mainContent: $('#main-content'),
-            sidebarToggle: $('#sidebar-toggle'),
-            fileList: $('#file-list'),
-            noteSection: $('#note-section'),
-            pdfViewer: $('#pdfViewer'),
-            uploadBtn: $('#uploadBtn'),
-            uploadForm: $('#uploadForm'),
-            pdfFile: $('#pdf_file'),
-            saveStatus: $('#saveStatus'),
-            saveNotesBtn: $('#saveNotes'),
-            otherNotes: $('#othernotes')
-        };
-    
-        // Configuration
-        const CONFIG = {
-            apiUrls: {
-                fileListing: "{% url 'file_listing' slug=project.slug %}",
-                uploadPdf: "{% url 'upload_pdf' %}",
-                saveNotes: "#",
-                getNotes: (slug) => `/api/notes/list/${slug}/`,
-                getSourceNotes: (slug) => `/api/notes/${slug}/`
-            },
-            autoSaveDelay: 1000,
-            alertDuration: 3000
-        };
-    
-        // Alert System
-        const AlertSystem = {
-            show: function(type, message) {
-                const alertClass = type === 'error' ? 'danger' : type;
-                const alertHtml = `
-                    <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
-                        ${message}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                `;
-                const $alert = $(alertHtml);
-                $('#alert-container').append($alert);
-                setTimeout(() => $alert.alert('close'), CONFIG.alertDuration);
-            }
-        };
-    
-        // Notes Manager
-        const NotesManager = {
-            saveTimeout: null,
-    
-            init: function() {
-                this.bindEvents();
-            },
-    
-            bindEvents: function() {
-                ELEMENTS.noteSection.on('input', () => this.triggerAutoSave());
-                ELEMENTS.saveNotesBtn.on('click', () => this.saveNotes());
-            },
-    
-            triggerAutoSave: function() {
-                ELEMENTS.saveStatus.text('Typing...').removeClass('text-success text-danger');
-                if (this.saveTimeout) clearTimeout(this.saveTimeout);
-                this.saveTimeout = setTimeout(() => this.saveNotes(), CONFIG.autoSaveDelay);
-            },
-    
-            updateStatusMessage: function(message, isSuccess = true) {
-                ELEMENTS.saveStatus
-                    .text(message)
-                    .removeClass('text-success text-danger')
-                    .addClass(isSuccess ? 'text-success' : 'text-danger');
-                
-                if (message) {
-                    setTimeout(() => ELEMENTS.saveStatus.text(''), 1000);
-                }
-            },
-    
-            saveNotes: function() {
-                const content = ELEMENTS.noteSection.html().trim();
-                if (!content) return;
-                
-                this.updateStatusMessage('Saving...');
-                
-                $.ajax({
-                    url: CONFIG.apiUrls.saveNotes,
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': this.getCSRFToken() },
-                    success: () => this.updateStatusMessage('Saved', true),
-                    error: () => this.updateStatusMessage('Save failed', false)
-                });
-            },
-    
-            loadSavedNotes: function() {
-                if (!sourceslug) {
-                    console.error('No source slug available');
-                    return;
-                }
-    
-                $.ajax({
-                    url: CONFIG.apiUrls.getNotes(sourceslug),
-                    method: 'GET',
-                    headers: {
-                        'X-CSRFToken': this.getCSRFToken()
-                    },
-                    success: (response) => {
-                        try {
-                            const notes = typeof response === 'string' ? JSON.parse(response) : response;
-                            this.renderNotes(notes);
-                        } catch (error) {
-                            console.error('Error parsing notes:', error);
-                            AlertSystem.show('error', 'Failed to load notes');
-                        }
-                    },
-                    error: (xhr, status, error) => {
-                        console.error('Error loading notes:', error);
-                        AlertSystem.show('error', 'Failed to load notes');
-                    }
-                });
-            },
-    
-            renderNotes: function(notes) {
-                if (!Array.isArray(notes)) {
-                    console.error('Invalid notes data:', notes);
-                    return;
-                }
-    
-                ELEMENTS.otherNotes.empty();
-    
-                if (notes.length === 0) {
-                    ELEMENTS.otherNotes.append('<div class="text-muted">No notes available</div>');
-                    return;
-                }
-    
-                notes.forEach((note, index) => {
-                    const accordionItem = this.createAccordionItem(note, index);
-                    ELEMENTS.otherNotes.append(accordionItem);
-                });
-            },
-    
-            createAccordionItem: function(note, index) {
-                const headerId = `heading-${index}`;
-                const collapseId = `collapse-${index}`;
-                const userName = `${note.user__first_name || ''} ${note.user__last_name || ''}`.trim() || 'Anonymous';
-    
-                return `
-                    <div class="accordion-item text-light">
-                        <h2 class="accordion-header text-light" id="${headerId}">
-                            <button class="accordion-button collapsed text-light" type="button" 
-                                    data-bs-toggle="collapse" 
-                                    data-bs-target="#${collapseId}" 
-                                    aria-expanded="false" 
-                                    aria-controls="${collapseId}">
-                                ${$('<div>').text(userName).html()}
-                            </button>
-                        </h2>
-                        <div id="${collapseId}" 
-                             class="accordion-collapse collapse" 
-                             aria-labelledby="${headerId}" 
-                             data-bs-parent="#othernotes">
-                            <div class="accordion-body">
-                                ${$('<div>').text(note.content || '').html()}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            },
-    
-            getCSRFToken: function() {
-                return document.querySelector('[name=csrfmiddlewaretoken]').value;
-            }
-        };
-    
-        // File Manager
-        const FileManager = {
-            fetchFiles: function() {
-                $.ajax({
-                    url: CONFIG.apiUrls.fileListing,
-                    method: 'GET',
-                    success: (data) => this.updateFileList(data),
-                    error: () => AlertSystem.show('error', 'Failed to load files')
-                });
-            },
-    
-            updateFileList: function(files) {
-                ELEMENTS.fileList.empty();
-                
-                if (!files?.length) {
-                    ELEMENTS.fileList.append('<li class="nav-item text-center text-muted p-3">No files available</li>');
-                    return;
-                }
-    
-                files.forEach(file => {
-                    const $fileItem = $(`
-                        <li class="nav-item mb-1">
-                            <a href="#" class="nav-link file-item" id="${file.slug}" data-filepath="/media/${file.pdf}">
-                                <i class="bi bi-file-earmark-pdf"></i> 
-                                <span>${$('<div>').text(file.title).html()}</span>
-                            </a>
-                        </li>
-                    `);
-                    ELEMENTS.fileList.append($fileItem);
-                });
-    
-                // Select first file by default
-                const $firstFile = ELEMENTS.fileList.find('.file-item').first();
-                if ($firstFile.length) {
-                    $firstFile.click();
-                    sourceslug = $firstFile.attr('id');
-                    NotesManager.loadSavedNotes();
-                }
-            },
-    
-            loadPdf: function(filepath) {
-                ELEMENTS.pdfViewer.attr('src', filepath)
-                    .on('error', () => AlertSystem.show('error', 'Failed to load PDF'));
-            },
-    
-            handleFileUpload: function(event) {
-                const file = ELEMENTS.pdfFile[0].files[0];
-                if (!file) return;
-    
-                if (file.type !== 'application/pdf') {
-                    AlertSystem.show('error', 'Please select a valid PDF file');
-                    return;
-                }
-    
-                const formData = new FormData(ELEMENTS.uploadForm[0]);
-                
-                $.ajax({
-                    url: CONFIG.apiUrls.uploadPdf,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: (response) => {
-                        AlertSystem.show('success', 'File uploaded successfully');
-                        this.fetchFiles();
-                    },
-                    error: (error) => AlertSystem.show('error', 'Upload failed: ' + error.responseText)
-                });
-            }
-        };
-    
-        // Event Bindings
-        function initializeEventListeners() {
-            ELEMENTS.sidebarToggle.on('click', () => {
-                ELEMENTS.sidebar.toggleClass('collapsed');
-                ELEMENTS.mainContent.toggleClass('collapsed');
-            });
-    
-            ELEMENTS.fileList.on('click', '.file-item', function(e) {
-                e.preventDefault();
-                ELEMENTS.fileList.find('.file-item').removeClass('active');
-                $(this).addClass('active');
-                sourceslug = $(this).attr('id');
-                FileManager.loadPdf($(this).data('filepath'));
-                NotesManager.loadSavedNotes();
-            });
-    
-            ELEMENTS.uploadBtn.on('click', () => ELEMENTS.pdfFile.click());
-            ELEMENTS.pdfFile.on('change', (e) => FileManager.handleFileUpload(e));
-        }
-    
-        // Initialize the application
-        function initialize() {
-            initializeEventListeners();
-            FileManager.fetchFiles();
-            NotesManager.init();
-        }
-    
-        initialize();
-    });
-</script> {% endcomment %}
-
 <script>
-    // Enhanced PDF Notes Manager Application
 $(document).ready(function() {
-    // Application State Management
     const AppState = {
         currentSourceSlug: null,
         isEditing: false,
@@ -731,7 +456,6 @@ $(document).ready(function() {
         saving: false
     };
 
-    // Enhanced Element Mapping with Error Checking
     const ELEMENTS = {
         sidebar: $('#sidebar'),
         mainContent: $('#main-content'),
@@ -747,7 +471,6 @@ $(document).ready(function() {
         otherNotes: $('#othernotes'),
         alertContainer: $('#alert-container'),
 
-        // Validate critical elements
         validate() {
             const missingElements = Object.entries(this)
                 .filter(([key, value]) => key !== 'validate' && !value?.length)
@@ -760,7 +483,6 @@ $(document).ready(function() {
         }
     };
 
-    // Configuration with Environment Detection
     const CONFIG = {
         apiUrls: {
             fileListing: `{% url 'file_listing' slug=project.slug %}`,
@@ -776,7 +498,6 @@ $(document).ready(function() {
         isDevelopment: window.location.hostname === 'localhost'
     };
 
-    // Enhanced Alert System with Queue
     class AlertSystem {
         static queue = [];
         static isProcessing = false;
@@ -808,7 +529,6 @@ $(document).ready(function() {
             await new Promise(resolve => setTimeout(resolve, duration));
             $alert.alert('close');
             
-            // Process next alert after a small delay
             setTimeout(() => this.processQueue(), 300);
         }
 
@@ -817,7 +537,6 @@ $(document).ready(function() {
         }
     }
 
-    // Enhanced Notes Manager with Error Recovery
     class NotesManager {
         constructor() {
             this.saveTimeout = null;
@@ -834,7 +553,6 @@ $(document).ready(function() {
 
             ELEMENTS.saveNotesBtn.on('click', () => this.saveNotes(true));
 
-            // Handle Ctrl+S or Cmd+S
             $(document).on('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                     e.preventDefault();
@@ -969,7 +687,6 @@ $(document).ready(function() {
                                 aria-controls="${collapseId}">
                             <div class="d-flex w-100 justify-content-between">
                                 <span>${AlertSystem.sanitizeHtml(userName)}</span>
-                                <small class="text-muted">${date}</small>
                             </div>
                         </button>
                     </h2>
@@ -1004,7 +721,6 @@ $(document).ready(function() {
         }
     }
 
-    // Enhanced File Manager with Better Error Handling
     class FileManager {
         constructor() {
             this.bindEvents();
@@ -1028,6 +744,35 @@ $(document).ready(function() {
             }
         }
 
+        deleteFiles(slug){
+                if (confirm('Are you sure you want to remove this source? This action cannot be undone.')) {
+                    $.ajax({
+                        url: `/api/resource/remove/${slug}`,
+                        type: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{  csrf_token }}'
+                        },
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                alert(response.message);
+                                $(`[data-source-slug="${slug}"]`).fadeOut(300, function() {
+                                    $(this).remove();
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            let errorMessage = 'An error occurred.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            alert(errorMessage);
+                        }
+                    });
+                }
+                this.fetchFiles();
+                return false;
+            }
+
         updateFileList(files) {
             const $container = ELEMENTS.fileList.empty();
             
@@ -1038,8 +783,9 @@ $(document).ready(function() {
 
             files.forEach(file => {
                 const $fileItem = $(`
-                    <li class="nav-item mb-1">
-                        <a href="#" class="nav-link file-item" 
+                    <li class="nav-item mb-1 d-flex align-items-center">
+                        <a href="#" onclick="fm.deleteFiles('${file.slug}')" class="nav-link btn btn-link p-2"><i class="bi bi-trash-fill"></i></a>
+                        <a href="#" class="nav-link file-item active flex-grow-1" 
                            id="${AlertSystem.sanitizeHtml(file.slug)}" 
                            data-filepath="/media/${AlertSystem.sanitizeHtml(file.pdf)}">
                             <i class="bi bi-file-earmark-pdf"></i> 
@@ -1050,7 +796,6 @@ $(document).ready(function() {
                 $container.append($fileItem);
             });
 
-            // Select first file by default
             const $firstFile = $container.find('.file-item').first();
             if ($firstFile.length) {
                 $firstFile.click();
@@ -1066,7 +811,7 @@ $(document).ready(function() {
 
             AppState.currentSourceSlug = $target.attr('id');
             this.loadPdf($target.data('filepath'));
-            notesManager.loadSavedNotes();
+            new NotesManager().loadSavedNotes();
         }
 
         loadPdf(filepath) {
@@ -1118,7 +863,6 @@ $(document).ready(function() {
         }
     }
 
-    // Initialize Layout Manager
     class LayoutManager {
         constructor() {
             this.bindEvents();
@@ -1131,7 +875,6 @@ $(document).ready(function() {
                 this.saveSidebarState();
             });
 
-            // Restore sidebar state
             const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
             if (isCollapsed) {
                 ELEMENTS.sidebar.addClass('collapsed');
@@ -1144,7 +887,6 @@ $(document).ready(function() {
         }
     }
 
-    // Application Initialization
     try {
         ELEMENTS.validate();
 
@@ -1152,10 +894,7 @@ $(document).ready(function() {
         const fileManager = new FileManager();
         const notesManager = new NotesManager();
 
-        // Initialize managers
         fileManager.fetchFiles();
-
-        // Development logging
         if (CONFIG.isDevelopment) {
             console.log('PDF Notes Manager initialized successfully');
         }
@@ -1163,6 +902,8 @@ $(document).ready(function() {
         console.error('Initialization failed:', error);
         AlertSystem.show('error', 'Failed to initialize application: ' + error.message);
     }
+    fm = new FileManager();
+
 });
 </script>
 {% endblock %}
