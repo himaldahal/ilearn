@@ -1,9 +1,9 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from reader.models import Project
+from reader.models import Project,Sources,Note
 
 class PdfUploadForm(forms.Form):
-    project_slug = forms.CharField(max_length=100, label='Project Slug', required=True)
+    project_slug = forms.CharField(max_length=100, label='Project Slug',required=True)
     pdf_file = forms.FileField(label='Select a PDF file', required=True)
 
     def __init__(self, *args, **kwargs):
@@ -30,5 +30,20 @@ class PdfUploadForm(forms.Form):
                 raise ValidationError('File must be a PDF.')
 
         cleaned_data['project'] = project
+        return cleaned_data
 
+
+class NoteForm(forms.Form):
+    source_slug = forms.CharField(required=True)
+    note = forms.Textarea()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        project_slug = cleaned_data.get('source_slug')
+        try:
+            source = Sources.objects.get(slug=project_slug)
+        except Sources.DoesNotExist:
+            raise ValidationError("{ 'status':'error','message':'Form manipulation isn\'t allowed.'")
+
+        cleaned_data['source'] = source
         return cleaned_data

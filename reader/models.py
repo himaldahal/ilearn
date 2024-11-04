@@ -42,21 +42,17 @@ class Sources(models.Model):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
 
     def save(self, *args, **kwargs):
-        # Generate title from PDF file name if title is empty
         if not self.title and self.pdf:
             base_name = os.path.splitext(self.pdf.name)[0][:32]
             self.title = re.sub(r'[-_]', ' ', base_name)
-
-        # Generate a unique slug if it is not provided
+     
         if not self.slug:
             trimmed_title = slugify(self.title[:32])
             self.slug = f"{trimmed_title}-{uuid.uuid4().hex[:8]}"
-
-        # Validation of PDF format
+  
         if not self.pdf.name.endswith('.pdf'):
             raise ValidationError("File must be a PDF")
 
-        # Sanitizion of PDF
         sanitized_pdf = PyPDF2.PdfWriter()
         try:
             pdf_reader = PyPDF2.PdfReader(self.pdf)
@@ -75,10 +71,8 @@ class Sources(models.Model):
 
             # Cleaning up the temporary file
             os.remove(temp_path)
-
         except Exception as e:
             raise ValidationError("Failed to sanitize PDF file.")
-
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -97,13 +91,14 @@ class Sources(models.Model):
 class Note(models.Model):
     source = models.ForeignKey(Sources, on_delete=models.CASCADE, related_name='notes')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    content = QuillField()
-    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    content = models.TextField(blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slug_generator() 
+
+    def save(self,*args, **kwargs):
+        # remove previous note of the same user and save new it  
+        if self.source.notes.filter(user=self.user).exists():
+            self.source.notes.filter(user=self.user).delete()
         super().save(*args, **kwargs)
-
+        
     def __str__(self):
         return f'Notes for {self.source}'
