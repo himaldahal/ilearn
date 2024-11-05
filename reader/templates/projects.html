@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% block head %}
 <style>
     body{
@@ -139,6 +138,7 @@
 {% endblock %}
 
 {% block body %}
+{% include 'components/navbar.html' %}
 <div class="projects-container">
     <h1 class="page-title">Your Projects</h1>
 <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
