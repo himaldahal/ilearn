@@ -1,75 +1,119 @@
 {% extends "base.html" %}
-{% block title %} iLearn - Collaborative Platform{% endblock %}
 {% block head %}
-    <style>
-        .hero-section {
-            height:70vh!important;
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://picsum.photos/1600/600?tech') no-repeat center center;
+<style>
+        body {
+            font-family: 'Arial', sans-serif;
+        }
+        .hero {
+            background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://source.unsplash.com/1600x900/?education,students') no-repeat center center;
             background-size: cover;
             color: white;
             text-align: center;
+            padding: 100px 20px;
         }
-        .features-icon {
+        .feature-icon {
             font-size: 3rem;
-            color: #0d6efd;
+            color: #007bff;
+        }
+        .interactive {
+            background-color: #f8f9fa;
+            padding: 50px 0;
+        }
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 20px 0;
         }
     </style>
-{% endblock head  %}
-{% block body  %}
-  <nav class="navbar navbar-expand-lg bg-light border-bottom">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="#">iLearn</a>
-      <ul class="navbar-nav ms-auto flex-row">
-        {% if user.is_authenticated %}
-          <li class="nav-item me-3">
-            <a class="btn btn-outline-primary" href="{% url 'logout' %}">Logout</a>
-          </li>
-        {% else %}
-          <li class="nav-item me-3">
-            <a class="btn btn-primary" href="{% url 'register' %}">Register</a>
-          </li>
-          <li class="nav-item">
-            <a class="btn btn-outline-secondary" href="{% url 'login' %}">Login</a>
-          </li>
-        {% endif %}
-      </ul>
-    </div>
-  </nav>
+    {% endblock head %}
+    {% block body %}
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="bi bi-book-half"></i> iLearnn</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#interactive">Interactive</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary" href="/register">Join Now</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-  <section class="hero-section" >
-    <div class="container pt-4">
-      <h1 class="display-4 fw-bold pt-4 mt-4" style="paddint-top:120px!important;">Welcome to iLearn</h1>
-      <p class="lead">Join, learn, and collaborate with others on educational projects.</p>
-      <a href="{% url 'register' %}" class="btn btn-outline-warning text-light btn-lg mt-3">Get Started</a>
-    </div>
-  </section>
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container">
+            <h1>Welcome to iLearnn</h1>
+            <p class="lead">Your Collaborative Learning Hub</p>
+            <a href="/register" class="btn btn-light btn-lg">Get Started</a>
+        </div>
+    </header>
 
-  <section class="container py-5">
-    <div class="text-center mb-5">
-      <h2>Why Choose iLearn?</h2>
-      <p>Collaborative tools, personalized projects, and a thriving community of learners.</p>
-    </div>
-    <div class="row text-center">
-      <div class="col-md-4">
-        <div class="features-icon mb-3"><i class="bi bi-people-fill"></i></div>
-        <h5>Collaborate with Others</h5>
-        <p>Work on projects with multiple users, share knowledge, and grow together.</p>
-      </div>
-      <div class="col-md-4">
-        <div class="features-icon mb-3"><i class="bi bi-person-check-fill"></i></div>
-        <h5>Personalized Learning</h5>
-        <p>Customize your learning journey to fit your individual needs and goals.</p>
-      </div>
-      <div class="col-md-4">
-        <div class="features-icon mb-3"><i class="bi bi-journal-code"></i></div>
-        <h5>Project-Based Learning</h5>
-        <p>Engage in real-world projects that build practical skills and knowledge.</p>
-      </div>
-    </div>
-  </section>
+    <!-- About Section -->
+    <section id="about" class="py-5">
+        <div class="container">
+            <h2 class="text-center">About iLearnn</h2>
+            <p class="lead text-center">iLearnn is a vibrant, interactive platform where students unite to share resources, collaborate on projects, and enhance their learning journey. Our mission is to make education accessible, engaging, and communal.</p>
+        </div>
+    </section>
 
-  <footer class="bg-light text-center py-3">
-    <p>&copy; 2024 iLearn. All rights reserved.</p>
-  </footer>
+    <!-- Features Section -->
+    <section id="features" class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center">Features</h2>
+            <div class="row">
+                <div class="col-md-4 text-center">
+                    <i class="bi bi-folder-symlink feature-icon"></i>
+                    <h4>Project Collaboration</h4>
+                    <p>Manage and collaborate on educational projects with your peers.</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="bi bi-cloud-arrow-up feature-icon"></i>
+                    <h4>Resource Sharing</h4>
+                    <p>Upload, share, and access a wide range of study materials securely.</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="bi bi-chat-square-text feature-icon"></i>
+                    <h4>Interactive Notes</h4>
+                    <p>Engage with study materials by adding and sharing your notes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-{% endblock body  %}
+    <!-- Interactive Section -->
+    <section id="interactive" class="interactive text-center">
+        <div class="container">
+            <h2>Interactive Experience</h2>
+            <p>Experience real-time collaboration and dynamic interactions with other students.</p>
+            <button id="exploreBtn" class="btn btn-outline-primary">Explore Now</button>
+        </div>
+    </section>
+
+    <footer class="footer text-center">
+        <div class="container">
+            <p>&copy; 2024 iLearnn. All rights reserved.</p>
+        </div>
+    </footer>
+    {% endblock body %}
+{% block script %}
+    <script defer>
+        $(document).ready(function() {
+            $("#exploreBtn").click(function() {
+                alert("Explore the interactive features of iLearnn!");
+            });
+        });
+    </script>
+    {% endblock script %}

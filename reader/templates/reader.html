@@ -346,6 +346,8 @@
     </script>
 {% endblock %}
 {% block body %}
+{% include 'components/navbar.html'%}
+
 <div class="container-fluid">
     <div class="modal fade" id="membersmodal" tabindex="-1" aria-labelledby="membersLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -355,20 +357,49 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item fw-bold h4">
-                            <i class="bi bi-person-bounding-box"></i> {{ project.user.first_name }} {{ project.user.last_name }}
+                    <ul class="list-group list-group-flush" id="membersList">
+                        <li class="list-group-item fw-bold h4 d-flex align-items-center">
+                            <i class="bi bi-person-bounding-box me-2"></i>
+                            <span>
+                                {% if project.user == request.user %}
+                                    <span class="text-primary">You</span> <small class="text-muted">(Owner)</small>
+                                {% else %}
+                                    <span class="text-dark">{{ project.user.first_name }} {{ project.user.last_name }}</span> 
+                                    <small class="text-muted">(Owner)</small>
+                                {% endif %}
+                            </span>
                         </li>
                         {% for user in project.allowed_users.all %}
-                            <li class="list-group-item h5">
-                                <i class="bi bi-person-circle text-secondary"></i> {{ user.first_name }} {{ user.last_name }}
+                            <li class="list-group-item h5 d-flex align-items-center" id="member-{{ user.id }}">
+                                <i class="bi bi-person-circle text-secondary me-2"></i>
+                                <span class="text-dark">{{ user.first_name }} {{ user.last_name }}</span>
+                                <button class="btn btn-danger ms-auto" onclick="removeMember('{{ user.id }}', '{{ project.slug }}')">Remove</button>
+                            </li>
+                        {% empty %}
+                            <li class="list-group-item">
+                                <span class="text-muted">No users allowed.</span>
                             </li>
                         {% endfor %}
                     </ul>
+
+                {% if request.user == project.user %}
+                <div id="errorMessages" class="mt-2"></div>
+                <form method="POST" id="addMember" action="{% url 'add_member_to_project' %}" class="d-flex align-items-center mt-3">
+                    {% csrf_token %}
+                    <div class="form-group mb-0 me-2">
+                        {{ add_mem_form.member_email }}
+                    </div>
+                    <input type="hidden" name="project_slug" value="{{ project.slug }}">
+                    <button type="submit" class="btn btn-danger">Add</button>
+                </form>
+                {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    
+    {% comment %} member mgmt modal {% endcomment %}
+
     <div class="d-flex">
         <div id="sidebar" class="collapsed">
             <div class="sidebar-header">
@@ -430,13 +461,7 @@
                                 </div>
                             </div>
                             <div id="note-section" class="form-control" contenteditable="true" style="min-height: 300px;">
-                                {% if note == '' %}
-                                Start typing your notes here...
-                                {% else%}
-                                {{ note.content }}
-                                {% endif %}
-
-                            </div>
+                               </div>
                         </div>
                     </div>
                     <div id="othernotes"  class="accordion accordion-flush" ></div>
@@ -448,13 +473,46 @@
 {% endblock %}
 {% block script %}
 <script>
+    function removeMember(memberId, projectSlug) {
+        $.ajax({
+            type: "POST",
+            url: "{% url 'remove_member_from_project' %}",
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'member_id': memberId,
+                'project_slug': projectSlug
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#errorMessages').html('<div class="alert alert-success">' + response.message + '</div>');
+                    $('#member-' + response.removed_member_id).remove(); // Remove the member from the list
+                } else {
+                    $('#errorMessages').html('<div class="alert alert-danger">An error occurred. Please try again.</div>');
+                }
+            },
+            error: function(xhr) {
+                let errors = xhr.responseJSON.errors;
+                let errorHtml = '<div class="alert alert-danger"><ul>';
+                for (let field in errors) {
+                    errors[field].forEach(function(errorObj) {
+                        errorHtml += '<li>' + errorObj.message + '</li>';
+                    });
+                }
+                errorHtml += '</ul></div>';
+                $('#errorMessages').html(errorHtml);
+            }
+        });
+    }
+
 $(document).ready(function() {
+ 
     const AppState = {
         currentSourceSlug: null,
         isEditing: false,
         lastSavedContent: '',
         saving: false
-    };
+    }; 
+
 
     const ELEMENTS = {
         sidebar: $('#sidebar'),
@@ -483,6 +541,18 @@ $(document).ready(function() {
         }
     };
 
+    function load_self_notes(slug) {
+        $.ajax({
+            url: `/api/notes/self/${slug}`,
+            cache: false,
+            success: function(resp) {
+
+                $("#note-section").empty();
+                $("#note-section").append(resp[0].content);
+            }
+        });
+        return false;
+    }
     const CONFIG = {
         apiUrls: {
             fileListing: `{% url 'file_listing' slug=project.slug %}`,
@@ -725,13 +795,13 @@ $(document).ready(function() {
         constructor() {
             this.bindEvents();
         }
-
+    
         bindEvents() {
             ELEMENTS.fileList.on('click', '.file-item', this.handleFileSelection.bind(this));
             ELEMENTS.uploadBtn.on('click', () => ELEMENTS.pdfFile.click());
             ELEMENTS.pdfFile.on('change', this.handleFileUpload.bind(this));
         }
-
+    
         async fetchFiles() {
             try {
                 const files = await $.ajax({
@@ -743,44 +813,44 @@ $(document).ready(function() {
                 AlertSystem.show('error', 'Failed to load files: ' + this.getErrorMessage(error));
             }
         }
-
-        deleteFiles(slug){
-                if (confirm('Are you sure you want to remove this source? This action cannot be undone.')) {
-                    $.ajax({
-                        url: `/api/resource/remove/${slug}`,
-                        type: 'POST',
-                        headers: {
-                            'X-CSRFToken': '{{  csrf_token }}'
-                        },
-                        success: function(response) {
-                            if (response.status === 'success') {
-                                alert(response.message);
-                                $(`[data-source-slug="${slug}"]`).fadeOut(300, function() {
-                                    $(this).remove();
-                                });
-                            }
-                        },
-                        error: function(xhr) {
-                            let errorMessage = 'An error occurred.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            alert(errorMessage);
+    
+        deleteFiles(slug) {
+            if (confirm('Are you sure you want to remove this source? This action cannot be undone.')) {
+                $.ajax({
+                    url: `/api/resource/remove/${slug}`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    success: (response) => {
+                        if (response.status === 'success') {
+                            AlertSystem.show('warning', response.message);
+                            $(`[data-source-slug="${slug}"]`).fadeOut(300, function() {
+                                $(this).remove();
+                            });
+                            this.fetchFiles(); 
                         }
-                    });
-                }
-                this.fetchFiles();
-                return false;
+                    },
+                    error: (xhr) => {
+                        let errorMessage = 'An error occurred.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        alert(errorMessage);
+                    }
+                });
             }
-
+            return false;
+        }
+    
         updateFileList(files) {
             const $container = ELEMENTS.fileList.empty();
-            
+    
             if (!files?.length) {
                 $container.append('<li class="nav-item text-center text-muted p-3">No files available</li>');
                 return;
             }
-
+    
             files.forEach(file => {
                 const $fileItem = $(`
                     <li class="nav-item mb-1 d-flex align-items-center">
@@ -795,37 +865,38 @@ $(document).ready(function() {
                 `);
                 $container.append($fileItem);
             });
-
+    
             const $firstFile = $container.find('.file-item').first();
             if ($firstFile.length) {
                 $firstFile.click();
             }
         }
-
+    
         handleFileSelection(e) {
             e.preventDefault();
             const $target = $(e.currentTarget);
-            
+    
             ELEMENTS.fileList.find('.file-item').removeClass('active');
             $target.addClass('active');
-
+    
             AppState.currentSourceSlug = $target.attr('id');
             this.loadPdf($target.data('filepath'));
+            load_self_notes($target.attr('id'));
             new NotesManager().loadSavedNotes();
         }
-
+    
         loadPdf(filepath) {
             ELEMENTS.pdfViewer
                 .attr('src', filepath)
                 .on('error', () => AlertSystem.show('error', 'Failed to load PDF'));
         }
-
+    
         async handleFileUpload(event) {
             const file = event.target.files[0];
             if (!this.validateFile(file)) return;
-
+    
             const formData = new FormData(ELEMENTS.uploadForm[0]);
-            
+    
             try {
                 await $.ajax({
                     url: CONFIG.apiUrls.uploadPdf,
@@ -834,34 +905,35 @@ $(document).ready(function() {
                     processData: false,
                     contentType: false
                 });
-
+    
                 AlertSystem.show('success', 'File uploaded successfully');
                 await this.fetchFiles();
             } catch (error) {
                 AlertSystem.show('error', 'Upload failed: ' + this.getErrorMessage(error));
             }
         }
-
+    
         validateFile(file) {
             if (!file) return false;
-
+    
             if (!CONFIG.allowedMimeTypes.includes(file.type)) {
                 AlertSystem.show('error', 'Please select a valid PDF file');
                 return false;
             }
-
+    
             if (file.size > CONFIG.maxFileSize) {
                 AlertSystem.show('error', 'File size exceeds maximum limit (10MB)');
                 return false;
             }
-
+    
             return true;
         }
-
+    
         getErrorMessage(error) {
             return error.responseJSON?.message || error.responseText || error.statusText || 'Unknown error occurred';
         }
     }
+    
 
     class LayoutManager {
         constructor() {
@@ -903,6 +975,45 @@ $(document).ready(function() {
         AlertSystem.show('error', 'Failed to initialize application: ' + error.message);
     }
     fm = new FileManager();
+   
+    setInterval(function() {
+        new NotesManager().loadSavedNotes();
+    }, 30000); 
+
+    //add memeber 
+    $('#addMember').submit(function(e) {
+        e.preventDefault(); // Prevent default form submission
+
+        $.ajax({
+            type: "POST",
+            url: $(this).attr('action'),
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#errorMessages').html('<div class="alert alert-success">' + response.message + '</div>');
+                    $('#membersList').append(
+                        '<li class="list-group-item h5 d-flex align-items-center">' +
+                        '<i class="bi bi-person-circle text-secondary me-2"></i>' +
+                        '<span class="text-dark">' + response.new_member_name + '</span>' +
+                        '</li>'
+                    );
+                } else {
+                    $('#errorMessages').html('<div class="alert alert-danger">An error occurred. Please try again.</div>');
+                }
+            },
+            error: function(xhr) {
+                let errors = xhr.responseJSON.errors;
+                let errorHtml = '<div class="alert alert-danger"><ul>';
+                for (let field in errors) {
+                    errors[field].forEach(function(errorObj) {
+                        errorHtml += '<li>' + errorObj.message + '</li>';
+                    });
+                }
+                errorHtml += '</ul></div>';
+                $('#errorMessages').html(errorHtml);
+            }
+        });
+    });
 
 });
 </script>

@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<style>
+    body{
+        background:var(--border-color);
+    }
+    :root {
+        --primary-bg: #1a1a1a;
+        --secondary-bg: #2d2d2d;
+        --accent-color: #7289da;
+        --text-primary: #ffffff;
+        --text-secondary: #a0a0a0;
+        --card-hover: #363636;
+        --border-color: #404040;
+    }
+
+    .projects-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    .page-title {
+        color: var(--text-primary);
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--accent-color);
+    }
+
+    .project-section {
+        background: var(--secondary-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-title {
+        color: var(--accent-color);
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .project-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .project-item {
+        background: var(--primary-bg);
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+
+    .project-item:hover {
+        transform: translateX(5px);
+        background: var(--card-hover);
+    }
+
+    .project-title {
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    .project-link {
+        background: var(--accent-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .project-link:hover {
+        background: #5b6ebd;
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .page-info {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .pagination-controls {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .pagination-link {
+        background: var(--primary-bg);
+        color: var(--text-primary);
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .pagination-link:hover {
+        background: var(--accent-color);
+        color: white;
+    }
+
+    .no-projects {
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 2rem;
+        background: var(--primary-bg);
+        border-radius: 8px;
+        font-size: 1.1rem;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="projects-container">
+    <h1 class="page-title">Your Projects</h1>
+<div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createProjectModalLabel">Create New Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createProjectForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="projectName" class="form-label">Project Name</label>
+                        <input type="text" class="form-control" id="projectName" name="project_name" required>
+                    </div>
+                    <div class="alert alert-danger d-none" id="errorAlert"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div class="project-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="section-title mb-0"><i class="bi bi-folder"></i> Owned Projects</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                <i class="bi bi-plus-circle"></i> Create Project
+            </button>
+        </div>
+          {% if owned_projects %}
+            <ul class="project-list">
+                {% for project in owned_projects %}
+                    <li class="project-item">
+                        <span class="project-title">{{ project.title }}</span>
+                        <a href="{% url 'project_home' slug=project.slug %}" class="project-link"><i class="bi bi-eye"></i> View</a>
+                        <a href="{% url 'remove_project_or_self' slug=project.slug %}" class="project-link bg-danger"><i class="bi bi-trash"></i> Delete</a>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="pagination-container">
+                <span class="page-info">Page {{ owned_projects.number }} of {{ owned_projects.paginator.num_pages }}</span>
+                <div class="pagination-controls">
+                    {% if owned_projects.has_previous %}
+                        <a class="pagination-link" href="?owned_page={{ owned_projects.previous_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                    {% endif %}
+                    {% if owned_projects.has_next %}
+                        <a class="pagination-link" href="?owned_page={{ owned_projects.next_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="no-projects">
+                <i class="bi bi-folder-x"></i> No owned projects found.
+            </div>
+        {% endif %}
+    </div>
+    <div class="project-section">
+        <h2 class="section-title">
+            <i class="bi bi-share"></i> Shared Projects
+        </h2>
+        {% if shared_projects %}
+            <ul class="project-list">
+                {% for project in shared_projects %}
+                    <li class="project-item">
+                        <span class="project-title">{{ project.title }}</span>
+                        <a href="{% url 'project_home' slug=project.slug %}" class="project-link">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        <a href="{% url 'remove_project_or_self' slug=project.slug %}"  class="project-link bg-danger">
+                            <i class="bi bi-trash"></i> Delete
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="pagination-container">
+                <span class="page-info">Page {{ shared_projects.number }} of {{ shared_projects.paginator.num_pages }}</span>
+                <div class="pagination-controls">
+                    {% if shared_projects.has_previous %}
+                        <a class="pagination-link" href="?shared_page={{ shared_projects.previous_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i> Previous
+                        </a>
+                    {% endif %}
+                    {% if shared_projects.has_next %}
+                        <a class="pagination-link" href="?shared_page={{ shared_projects.next_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">
+                            Next <i class="bi bi-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="no-projects">
+                <i class="bi bi-share-x"></i> No shared projects found.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+    $(document).ready(function() {
+        $('#createProjectForm').on('submit', function(event) {
+            event.preventDefault();
+            const formData = $(this).serialize();
+            $.ajax({
+                type: 'POST',
+                url: '{% url "create_project" %}', 
+                data: formData,
+                success: function(response) {
+                    if (response.status === 'success') {
+                        window.location.href = '/project/' + response.slug + '/';
+                    }
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'An error occurred';
+                    $('#errorAlert').text(errorMsg).removeClass('d-none');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
