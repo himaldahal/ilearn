@@ -57,25 +57,33 @@ def register(request):
 def login(request):
     if request.user.is_authenticated:
         return redirect('home')
-    
+
     if request.method == 'POST':
         form = Login(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            user = authenticate(request, username=email, password=password)
-            if user is not None:
-                auth_login(request, user)
-                messages.success(request, f'Welcome back, {user.first_name}!')
-                return redirect('home')
-            else:
+            
+            # Authenticate user by email
+            try:
+                # Retrieve the user based on email (used as username here)
+                user = User.objects.get(email=email)
+                # Check if the password matches
+                if user.check_password(password):
+                    auth_login(request, user)
+                    messages.success(request, f'Welcome back, {user.first_name}!')
+                    return redirect('home')
+                else:
+                    messages.error(request, 'Invalid email or password.')
+            except User.DoesNotExist:
                 messages.error(request, 'Invalid email or password.')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
         form = Login()
-   
+
     return render(request, 'registration/login.html', {'form': form})
+
 def auth_logout(request):
     if request.user.is_authenticated is False:
         return redirect('home')

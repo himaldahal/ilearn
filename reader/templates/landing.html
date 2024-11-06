@@ -1,106 +1,299 @@
 {% extends "base.html" %}
+{% load static %}
+{% block title %}iLearn - Your Learning Evolution{% endblock %}
+
 {% block head %}
 <style>
-        body {
-            font-family: 'Arial', sans-serif;
-        }
-        .hero {
-            background-color: #4158D0;
-            background-image: linear-gradient(135deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%);
+:root {
+    --primary-color: #00ff88;
+    --secondary-color: #7000ff;
+    --dark-bg: #0a0a0a;
+    --card-bg: #111111;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+}
 
-            color: white;
-            text-align: center;
-            padding: 100px 20px;
-        }
-        .feature-icon {
-            font-size: 3rem;
-            color: #007bff;
-        }
-       
-        #features{
-            background-color: #70ebd5;
-            background-image: linear-gradient(62deg, #70ebd5 0%, #68f7ef 50%, #06cdef 100%);
-        }
-       
-        .footer {
-            background-color: #343a40;
-            color: white;
-            padding: 20px 0;
-        }
-    </style>
-    {% endblock head %}
-    {% block body %}
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container">
-            <a class="navbar-brand" href="/"><i class="bi bi-book-half"></i> iLearn</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#about">About</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#features">Features</a>
-                    </li>
-                    <li class="nav-item">
-                        {% if request.user.is_authenticated %}
-                           <a href="{% url 'project_list'%}" class="btn btn-dark btn-lg">Projects</a>
-                        {% else %}
-                          <a class="btn btn-primary" href="{% url 'register' %}">Join Now</a>
-                        {% endif %}
-                    </li>
-                </ul>
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--dark-bg);
+    color: var(--text-primary);
+    overflow-x: hidden;
+}
+
+.navbar {
+    background-color: rgba(10, 10, 10, 0.95) !important;
+    backdrop-filter: blur(10px);
+    padding: 1rem 0;
+    transition: all 0.3s ease;
+}
+
+.navbar.scrolled {
+    padding: 0.5rem 0;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+.navbar-brand img {
+    transition: all 0.3s ease;
+}
+
+.navbar.scrolled .navbar-brand img {
+    width: 80px;
+}
+
+.nav-link {
+    color: var(--text-primary) !important;
+    font-weight: 500;
+    position: relative;
+    padding: 0.5rem 1rem !important;
+    margin: 0 0.5rem;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: 0;
+    left: 50%;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+.hero {
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 50%, rgba(112, 0, 255, 0.1) 0%, rgba(0, 255, 136, 0.05) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
+    animation: move-bg 20s linear infinite;
+}
+
+@keyframes move-bg {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    padding-top: 15vh;
+}
+
+.hero h1 {
+    font-size: 4.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+}
+
+.feature-card {
+    background-color: var(--card-bg);
+    border-radius: 1rem;
+    padding: 2rem;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    border-color: var(--primary-color);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+}
+
+.btn-custom {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border: none;
+    color: var(--dark-bg);
+    font-weight: 600;
+    padding: 1rem 2rem;
+    border-radius: 2rem;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
+}
+
+.floating {
+    animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+}
+
+footer {
+    background-color: var(--card-bg);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.social-icon {
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    margin: 0 1rem;
+    transition: all 0.3s ease;
+}
+
+.social-icon:hover {
+    color: var(--primary-color);
+    transform: translateY(-3px);
+}
+</style>
+{% endblock head %}
+
+{% block body %}
+<nav class="navbar navbar-expand-lg fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <img src="{% static 'logo.png' %}" class="img-fluid" width="100" alt="iLearn Logo">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <i class="bi bi-list text-white"></i>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item">
+                    <a class="nav-link" href="#features">Features</a>
+                </li>
+                <li class="nav-item ms-lg-3">
+                    {% if request.user.is_authenticated %}
+                        <a href="{% url 'project_list'%}" class="btn btn-custom">My Dashboard</a>
+                    {% else %}
+                        <a class="btn btn-custom" href="{% url 'register' %}">Get Started</a>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<header class="hero d-flex align-items-center">
+    <div class="container">
+        <div class="row align-items-center hero-content">
+            <div class="col-lg-6">
+                <h1 class="mb-4 floating">Transform Your Learning Journey</h1>
+                <p class="lead text-secondary mb-5">Experience the future of collaborative learning with AI-powered tools and real-time collaboration features.</p>
+                {% if request.user.is_authenticated %}
+                    <a href="{% url 'project_list'%}" class="btn btn-custom btn-lg me-3">View Projects</a>
+                {% else %}
+                    <a href="{% url 'register' %}" class="btn btn-custom btn-lg me-3">Start Learning</a>
+                {% endif %}
+                <a href="#features" class="btn btn-outline-light btn-lg">Learn More</a>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <img src="{% static 'hero.png' %}" class="img-fluid floating" alt="Learning Illustration">
             </div>
         </div>
-    </nav>
+    </div>
+</header>
 
-    <header class="hero">
-        <div class="container">
-            <h1>Welcome to iLearn</h1>
-            <p class="lead">Your Collaborative Learning Hub</p>
-            {% if request.user.is_authenticated %}
-                <a href="{% url 'project_list'%}" class="btn btn-light btn-lg">Get Started</a>
-            {% else %}
-                <a href="{% url 'register' %}" class="btn btn-light btn-lg">Get Started</a>
-            {% endif %}
+<section id="features" class="py-6">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-4 mb-3">Why Choose iLearn?</h2>
+            <p class="lead text-secondary">Discover the features that make us unique</p>
         </div>
-    </header>
-
-    <section id="features" class="py-5">
-        <div class="container-fluid px-5 overflow-hidden rounded">
-            <h2 class="text-center">Features</h2>
-            <div class="row gx-5">
-                <div class="col text-center bg-light rounded pt-2">
-                    <i class="bi bi-folder-symlink feature-icon"></i>
-                    <h4>Project Collaboration</h4>
-                    <p>Manage and collaborate on educational projects with your peers.</p>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-braces-asterisk feature-icon"></i>
+                    <h4>Smart Learning</h4>
+                    <p class="text-secondary">AI-powered personalized learning paths and recommendations based on your progress.</p>
                 </div>
-                <div class="col text-center bg-light rounded pt-2 m-2">
-                    <i class="bi bi-cloud-arrow-up feature-icon"></i>
-                    <h4>Resource Sharing</h4>
-                    <p>Upload, share, and access a wide range of study materials securely.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-people-fill feature-icon"></i>
+                    <h4>Collaborative Space</h4>
+                    <p class="text-secondary">Work together in real-time with peers and mentors on projects and assignments.</p>
                 </div>
-                <div class="col text-center bg-light rounded pt-2 ">
-                    <i class="bi bi-chat-square-text feature-icon"></i>
-                    <h4>Interactive Notes</h4>
-                    <p>Engage with study materials by adding and sharing your notes.</p>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <i class="bi bi-graph-up-arrow feature-icon"></i>
+                    <h4>Progress Tracking</h4>
+                    <p class="text-secondary">Detailed analytics and insights to monitor your learning journey.</p>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-
-    <footer class="bg-dark text-light py-4">
-        <div class="container text-center">
-            <h5 class="text-primary font-weight-bold">iLearn</h5>
-            <p class="mb-0">
-                &copy; 2024 All rights reserved. 
-                <a href="https://github.com/himaldahal/" class="text-info text-decoration-none">
-                    <i class="bi bi-heart-fill"></i> Made with love by Himal Dahal
-                </a>
-            </p>
+<footer class="py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-4 text-center text-md-start">
+                <img src="{% static 'logo.png' %}" alt="iLearn" width="120" class="mb-3">
+                <p class="text-secondary small">Transforming education through technology</p>
+            </div>
+            <div class="col-md-4 text-center my-4 my-md-0">
+                <div class="social-links">
+                    <a href="https://github.com/himaldahal/" class="social-icon"><i class="bi bi-github"></i></a>
+                </div>
+            </div>
+            <div class="col-md-4 text-center text-md-end">
+                <p class="mb-0 text-secondary">
+                    &copy; 2024 iLearn. Made with <i class="bi bi-heart-fill text-danger"></i> by
+                    <a href="https://github.com/himaldahal/" class="text-decoration-none text-primary">Himal Dahal</a>
+                </p>
+            </div>
         </div>
-    </footer>
-    {% endblock body %}
+    </div>
+</footer>
+
+<script>
+$(document).ready(function() {
+    // Navbar scroll effect
+    $(window).scroll(function() {
+        if ($(this).scrollTop() > 50) {
+            $('.navbar').addClass('scrolled');
+        } else {
+            $('.navbar').removeClass('scrolled');
+        }
+    });
+
+    // Smooth scroll
+    $('a[href*="#"]').on('click', function(e) {
+        e.preventDefault();
+        $('html, body').animate(
+            {
+                scrollTop: $($(this).attr('href')).offset().top - 100,
+            },
+            500,
+            'linear'
+        );
+    });
+});
+</script>
+{% endblock body %}
