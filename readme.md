@@ -1,7 +1,7 @@
 iLearn
 ======
 
-iLearn is a collaborative platform where users can create groups, share resources, and exchange notes effortlessly. This project is built using **Bootstrap 5**, **Bootstrap Icons**, **jQuery**, **Python (Django)**, and **PyPDF2** for PDF processing.
+iLearn is a collaborative platform where users can create groups, share resources, and exchange notes effortlessly.
 
 Table of Contents
 -----------------
@@ -81,6 +81,25 @@ Project Structure
     ├── templates/              # HTML templates
     ├── manage.py               # Django management script
     ├── requirements.txt        # Python dependencies
+    ├── db.sqlite3              # database
+    
+## Screenshots
+
+### Homepage
+![Homepage](https://github.com/himaldahal/ilearn/raw/main/screenshots/homepage.png)
+
+### Projects Page
+![Projects Page](https://github.com/himaldahal/ilearn/raw/main/screenshots/projects.png)
+
+### PDF Reader
+![PDF Reader](https://github.com/himaldahal/ilearn/raw/main/screenshots/reader.png)
+
+### Register Page
+![Register Page](https://github.com/himaldahal/ilearn/raw/main/screenshots/register.png)
+
+### Sign-in Page
+![Sign-in Page](https://github.com/himaldahal/ilearn/raw/main/screenshots/signin.png)
+
 
 Contributing
 ------------
