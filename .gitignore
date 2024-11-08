@@ -1,2 +1,6 @@
 media/*
+myauth/__pycache__/*
+myauth/migrations/*
+myauth/reader/migrations/*
+myauth/reader/__pycache__/*
 db.sqlite3
