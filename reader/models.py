@@ -101,6 +101,8 @@ class Note(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)
 
+    class Meta:
+     unique_together = ('source', 'user')
 
     def save(self,*args, **kwargs):
         # remove previous note of the same user and save new it  
