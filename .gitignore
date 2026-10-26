@@ -1,6 +1,7 @@
-media/*
-myauth/__pycache__/*
-myauth/migrations/*
-myauth/reader/migrations/*
-myauth/reader/__pycache__/*
+__pycache__/
+*.pyc
+media/
+staticfiles/
 db.sqlite3
+venv/
+.env

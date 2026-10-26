@@ -1,262 +1,138 @@
 {% extends 'base.html' %}
-{% block title %}Projects {% endblock %}
+{% block title %}Projects{% endblock %}
 {% block head %}
 <style>
-    body{
-        background:var(--border-color);
-    }
-    :root {
-        --primary-bg: #1a1a1a;
-        --secondary-bg: #2d2d2d;
-        --accent-color: #7289da;
-        --text-primary: #ffffff;
-        --text-secondary: #a0a0a0;
-        --card-hover: #363636;
-        --border-color: #404040;
-    }
-
-    .projects-container {
-        max-width: 1200px;
-        margin: 2rem auto;
-        padding: 0 1.5rem;
-    }
-
-    .page-title {
-        color: var(--text-primary);
-        font-size: 2.5rem;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 3rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid var(--accent-color);
-    }
-
-    .project-section {
-        background: var(--secondary-bg);
-        border-radius: 12px;
-        padding: 2rem;
-        margin-bottom: 3rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .section-title {
-        color: var(--accent-color);
-        font-size: 1.8rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .project-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .project-item {
-        background: var(--primary-bg);
-        border-radius: 8px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.3s ease;
-    }
-
-    .project-item:hover {
-        transform: translateX(5px);
-        background: var(--card-hover);
-    }
-
-    .project-title {
-        color: var(--text-primary);
-        font-size: 1.1rem;
-        font-weight: 500;
-    }
-
-    .project-link {
-        background: var(--accent-color);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .project-link:hover {
-        background: #5b6ebd;
-        color: white;
-        transform: scale(1.05);
-    }
-
-    .pagination-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
-    }
-
-    .page-info {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-    }
-
-    .pagination-controls {
-        display: flex;
-        gap: 1rem;
-    }
-
-    .pagination-link {
-        background: var(--primary-bg);
-        color: var(--text-primary);
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-
-    .pagination-link:hover {
-        background: var(--accent-color);
-        color: white;
-    }
-
-    .no-projects {
-        color: var(--text-secondary);
-        text-align: center;
-        padding: 2rem;
-        background: var(--primary-bg);
-        border-radius: 8px;
-        font-size: 1.1rem;
-    }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin: 2.5rem 0 2rem; }
+.page-head h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+.section-label { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 2.25rem 0 1rem; display: flex; align-items: center; gap: .5rem; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; transition: border-color .15s ease; }
+.project-card:hover { border-color: #3a4252; }
+.project-card .icon { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(99, 102, 241, .14); color: var(--accent); font-size: 1.15rem; }
+.project-card h3 { font-size: 1.05rem; font-weight: 600; margin: .9rem 0 0; word-break: break-word; }
+.project-actions { display: flex; gap: .5rem; margin-top: auto; }
+.project-actions form { margin: 0; }
+.project-actions .btn { padding: .4rem .8rem; font-size: .9rem; border-radius: 8px; }
+.btn-danger-soft { background: transparent; border: 1px solid var(--border); color: #f87171; font-weight: 500; }
+.btn-danger-soft:hover { background: rgba(239, 68, 68, .1); border-color: rgba(239, 68, 68, .4); color: #f87171; }
+.empty { border: 1px dashed var(--border); border-radius: var(--radius); padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
+.pager { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; color: var(--muted); font-size: .9rem; }
+.pager a { color: var(--text); text-decoration: none; border: 1px solid var(--border); border-radius: 8px; padding: .3rem .8rem; margin-left: .5rem; }
+.pager a:hover { background: var(--surface-2); }
 </style>
 {% endblock %}
 
 {% block body %}
 {% include 'components/navbar.html' %}
-<div class="projects-container">
-    <h1 class="page-title">Your Projects</h1>
+
+<main class="container pb-5">
+    <div class="page-head">
+        <div>
+            <p class="text-secondary mb-1">Hi, {{ request.user.first_name }} {{ request.user.last_name }}</p>
+            <h1>Your projects</h1>
+        </div>
+        <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#createProjectModal"><i class="bi bi-plus-lg me-1"></i>New project</button>
+    </div>
+
+    <div class="section-label"><i class="bi bi-folder2"></i> Owned by you</div>
+    {% if owned_projects %}
+        <div class="project-grid">
+            {% for project in owned_projects %}
+                <div class="project-card">
+                    <div>
+                        <div class="icon"><i class="bi bi-journal-bookmark"></i></div>
+                        <h3>{{ project.title }}</h3>
+                    </div>
+                    <div class="project-actions">
+                        <a href="{% url 'project_home' slug=project.slug %}" class="btn btn-accent">Open</a>
+                        <form method="post" action="{% url 'remove_project_or_self' slug=project.slug %}" onsubmit="return confirm('Delete this project and its files?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger-soft"><i class="bi bi-trash"></i> Delete</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if owned_projects.has_other_pages %}
+        <div class="pager">
+            <span>Page {{ owned_projects.number }} of {{ owned_projects.paginator.num_pages }}</span>
+            <span>
+                {% if owned_projects.has_previous %}<a href="?owned_page={{ owned_projects.previous_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">Previous</a>{% endif %}
+                {% if owned_projects.has_next %}<a href="?owned_page={{ owned_projects.next_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">Next</a>{% endif %}
+            </span>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="empty">No projects yet. Create one to start uploading PDFs.</div>
+    {% endif %}
+
+    <div class="section-label"><i class="bi bi-people"></i> Shared with you</div>
+    {% if shared_projects %}
+        <div class="project-grid">
+            {% for project in shared_projects %}
+                <div class="project-card">
+                    <div>
+                        <div class="icon"><i class="bi bi-people"></i></div>
+                        <h3>{{ project.title }}</h3>
+                        <p class="text-secondary small mb-0">by {{ project.user.first_name }} {{ project.user.last_name }}</p>
+                    </div>
+                    <div class="project-actions">
+                        <a href="{% url 'project_home' slug=project.slug %}" class="btn btn-accent">Open</a>
+                        <form method="post" action="{% url 'remove_project_or_self' slug=project.slug %}" onsubmit="return confirm('Leave this project?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger-soft"><i class="bi bi-box-arrow-left"></i> Leave</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if shared_projects.has_other_pages %}
+        <div class="pager">
+            <span>Page {{ shared_projects.number }} of {{ shared_projects.paginator.num_pages }}</span>
+            <span>
+                {% if shared_projects.has_previous %}<a href="?shared_page={{ shared_projects.previous_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">Previous</a>{% endif %}
+                {% if shared_projects.has_next %}<a href="?shared_page={{ shared_projects.next_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">Next</a>{% endif %}
+            </span>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="empty">Nothing shared with you yet.</div>
+    {% endif %}
+</main>
+
 <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="createProjectModalLabel">Create New Project</h5>
+                <h5 class="modal-title" id="createProjectModalLabel">New project</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <form id="createProjectForm">
+            <form id="createProjectForm">
+                <div class="modal-body">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="projectName" class="form-label">Project Name</label>
-                        <input type="text" class="form-control" id="projectName" name="project_name" required>
-                    </div>
-                    <div class="alert alert-danger d-none" id="errorAlert"></div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Create Project</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-    <div class="project-section">
-        <p class="text-light"> <span>Hi,</span> {{ request.user.first_name }} {{request.user.last_name }}</p>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="section-title mb-0"><i class="bi bi-folder"></i> Owned Projects</h2>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal">
-                <i class="bi bi-plus-circle"></i> Create Project
-            </button>
-        </div>
-          {% if owned_projects %}
-            <ul class="project-list">
-                {% for project in owned_projects %}
-                    <li class="project-item">
-                        <span class="project-title">{{ project.title }}</span>
-                        <a href="{% url 'project_home' slug=project.slug %}" class="project-link"><i class="bi bi-eye"></i> View</a>
-                        <a href="{% url 'remove_project_or_self' slug=project.slug %}" class="project-link bg-danger"><i class="bi bi-trash"></i> Delete</a>
-                    </li>
-                {% endfor %}
-            </ul>
-            <div class="pagination-container">
-                <span class="page-info">Page {{ owned_projects.number }} of {{ owned_projects.paginator.num_pages }}</span>
-                <div class="pagination-controls">
-                    {% if owned_projects.has_previous %}
-                        <a class="pagination-link" href="?owned_page={{ owned_projects.previous_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">
-                            <i class="bi bi-chevron-left"></i> Previous
-                        </a>
-                    {% endif %}
-                    {% if owned_projects.has_next %}
-                        <a class="pagination-link" href="?owned_page={{ owned_projects.next_page_number }}{% if shared_projects.has_other_pages %}&shared_page={{ shared_projects.number }}{% endif %}">
-                            Next <i class="bi bi-chevron-right"></i>
-                        </a>
-                    {% endif %}
+                    <label for="projectName" class="form-label">Project name</label>
+                    <input type="text" class="form-control" id="projectName" name="project_name" maxlength="200" required>
+                    <div class="alert alert-danger d-none mt-3 mb-0" id="errorAlert"></div>
                 </div>
-            </div>
-        {% else %}
-            <div class="no-projects">
-                <i class="bi bi-folder-x"></i> No owned projects found.
-            </div>
-        {% endif %}
-    </div>
-    <div class="project-section">
-        <h2 class="section-title">
-            <i class="bi bi-share"></i> Shared Projects
-        </h2>
-        {% if shared_projects %}
-            <ul class="project-list">
-                {% for project in shared_projects %}
-                    <li class="project-item">
-                        <span class="project-title">{{ project.title }}</span>
-                        <a href="{% url 'project_home' slug=project.slug %}" class="project-link">
-                            <i class="bi bi-eye"></i> View
-                        </a>
-                        <a href="{% url 'remove_project_or_self' slug=project.slug %}"  class="project-link bg-danger">
-                            <i class="bi bi-trash"></i> Delete
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
-            <div class="pagination-container">
-                <span class="page-info">Page {{ shared_projects.number }} of {{ shared_projects.paginator.num_pages }}</span>
-                <div class="pagination-controls">
-                    {% if shared_projects.has_previous %}
-                        <a class="pagination-link" href="?shared_page={{ shared_projects.previous_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">
-                            <i class="bi bi-chevron-left"></i> Previous
-                        </a>
-                    {% endif %}
-                    {% if shared_projects.has_next %}
-                        <a class="pagination-link" href="?shared_page={{ shared_projects.next_page_number }}{% if owned_projects.has_other_pages %}&owned_page={{ owned_projects.number }}{% endif %}">
-                            Next <i class="bi bi-chevron-right"></i>
-                        </a>
-                    {% endif %}
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-accent">Create</button>
                 </div>
-            </div>
-        {% else %}
-            <div class="no-projects">
-                <i class="bi bi-share-x"></i> No shared projects found.
-            </div>
-        {% endif %}
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
+
 {% block script %}
 <script>
     $(document).ready(function() {
         $('#createProjectForm').on('submit', function(event) {
             event.preventDefault();
-            const formData = $(this).serialize();
             $.ajax({
                 type: 'POST',
-                url: '{% url "create_project" %}', 
-                data: formData,
+                url: '{% url "create_project" %}',
+                data: $(this).serialize(),
                 success: function(response) {
                     if (response.status === 'success') {
                         window.location.href = '/project/' + response.slug + '/';

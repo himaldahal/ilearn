@@ -1,3 +1,4 @@
+import io
 import os
 import secrets
 import string
@@ -61,29 +62,20 @@ class Sources(models.Model):
             trimmed_title = slugify(self.title[:32])
             self.slug = f"{trimmed_title}-{uuid.uuid4().hex[:8]}"
   
-        if not self.pdf.name.endswith('.pdf'):
+        if not self.pdf.name.lower().endswith('.pdf'):
             raise ValidationError("File must be a PDF")
 
-        sanitized_pdf = PyPDF2.PdfWriter()
-        try:
-            pdf_reader = PyPDF2.PdfReader(self.pdf)
-            for page_num in range(len(pdf_reader.pages)):
-                sanitized_pdf.add_page(pdf_reader.pages[page_num])
-
-            # Saving sanitized file temporarily
-            temp_path = f"/tmp/{self.slug}.pdf"
-            with open(temp_path, "wb") as output_file:
-                sanitized_pdf.write(output_file)
-
-            # Moving sanitized file to 'resources/' path in the media location
-            resources_path = os.path.join('resources', f"{self.slug}.pdf")
-            with open(temp_path, "rb") as temp_file:
-                self.pdf.save(resources_path, File(temp_file), save=False)
-
-            # Cleaning up the temporary file
-            os.remove(temp_path)
-        except Exception as e:
-            raise ValidationError("Failed to sanitize PDF file.")
+        if self._state.adding:
+            try:
+                writer = PyPDF2.PdfWriter()
+                for page in PyPDF2.PdfReader(self.pdf).pages:
+                    writer.add_page(page)
+                buffer = io.BytesIO()
+                writer.write(buffer)
+                buffer.seek(0)
+                self.pdf.save(os.path.join('resources', f"{self.slug}.pdf"), File(buffer), save=False)
+            except Exception:
+                raise ValidationError("Failed to sanitize PDF file.")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

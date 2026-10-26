@@ -12,6 +12,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def has_access(user, project):
+    return user == project.user or project.allowed_users.filter(pk=user.pk).exists()
+
 @login_required
 def project_list_view(request):
     owned_projects = Project.objects.filter(user=request.user)
@@ -35,21 +38,23 @@ def project_home(request,slug,*args, **kwargs):
     project = get_object_or_404(Project, slug=slug)
     add_mem_form = AddProjectMemberForm(initial={'project_slug':project.slug})
 
-    self_note = Note.objects.filter(user=request.user, source__project=project).first()
-    if request.user != project.user and request.user not in project.allowed_users.all():
+    if not has_access(request.user, project):
         logger.warning(f"Unauthorized access attempt by {request.user.username} to project {slug}")
         return JsonResponse({'error': 'Unauthorized access'}, status=403)
+
+    self_note = Note.objects.filter(user=request.user, source__project=project).first()
 
     return render(request, 'reader.html', {'project': project,'note':self_note,'add_mem_form':add_mem_form})
 
 #APIs
+@login_required
 def list_resources(request,slug,*args, **kwargs):
     project = get_object_or_404(Project,slug=slug)
     if request.user != project.user and request.user not in project.allowed_users.all():
         logger.warning(f"Unauthorized access attempt by {request.user.username} to PDF {slug}")
         return JsonResponse({'error': 'Unauthorized access'}, status=403)
 
-    resources = Sources.objects.filter(project=project).values('title','pdf','slug',)
+    resources = Sources.objects.filter(project=project).values('title','slug')
     return JsonResponse(list(resources),safe=False)
 
 @require_POST
@@ -67,6 +72,7 @@ def upload_pdf_view(request):
         errors = {field: error[0] for field, error in form.errors.items()}
         return JsonResponse({'status': 'error', 'message': errors}, status=400)
     
+@require_POST
 @login_required
 def remove_source(request, slug):
     source = get_object_or_404(Sources, slug=slug)
@@ -78,7 +84,8 @@ def remove_source(request, slug):
         
         logger.warning(f"Unauthorized access attempt by {request.user.username} to source {slug}")
         return JsonResponse({'status': 'error', 'message': 'Unauthorized access.'}, status=403)
-    except Exception as e:
+    except Exception:
+        logger.exception(f"Failed to remove source {slug}")
         return JsonResponse({'status': 'error', 'message': 'Try again later'}, status=400)
 
 @login_required
@@ -92,13 +99,14 @@ def fetch_all_notes(request, slug, *args, **kwargs):
     notes = Note.objects.filter(source=src).values('user__first_name','user__last_name','content',).exclude(user=request.user)
     return JsonResponse(list(notes), safe=False)
 
+@require_POST
 @login_required
 def save_note(request):
     if request.method == 'POST':
         source_slug = request.POST.get('source_slug')
-        content = request.POST.get('content')
+        content = request.POST.get('content', '')[:20000]
         source = get_object_or_404(Sources, slug=source_slug)
-        project = Project.objects.get(slug=source.project.slug)
+        project = source.project
         if request.user != project.user and request.user not in project.allowed_users.all():
             logger.warning(f"Unauthorized access attempt by {request.user.username} to PDF {source_slug}")
             return JsonResponse({'error': 'Unauthorized access'}, status=403)
@@ -113,10 +121,10 @@ def save_note(request):
 @login_required
 def get_self_note(request,slug):
     source = get_object_or_404(Sources, slug=slug)
-    project = Project.objects.get(slug=source.project.slug)
-    if request.user != project.user and request.user not in project.allowed_users.all():
-            logger.warning(f"Unauthorized access attempt by {request.user.username} to PDF {slug}")
-            return JsonResponse({'error': 'Unauthorized access'}, status=403)
+    project = source.project
+    if not has_access(request.user, project):
+        logger.warning(f"Unauthorized access attempt by {request.user.username} to PDF {slug}")
+        return JsonResponse({'error': 'Unauthorized access'}, status=403)
 
     notes = Note.objects.filter(user=request.user, source=source).values('content',)
     return JsonResponse(list(notes), safe=False)
@@ -139,11 +147,13 @@ def add_member_to_project(request):
         return JsonResponse({
             'status': 'success', 
             'message': 'Member added successfully.', 
-            'new_member_name': f"{member.first_name} {member.last_name}"
+            'new_member_name': f"{member.first_name} {member.last_name}",
+            'new_member_id': member.id,
         }, status=200)
     else:
         return JsonResponse({
-            'status': 'error', 
+            'status': 'error',
+            'message': ' '.join(e['message'] for errs in form.errors.get_json_data().values() for e in errs),
             'errors': form.errors.get_json_data()
         }, status=400)
 
@@ -172,11 +182,13 @@ def remove_member_from_project(request):
         }, status=200)
     else:
         return JsonResponse({
-            'status': 'error', 
+            'status': 'error',
+            'message': ' '.join(e['message'] for errs in form.errors.get_json_data().values() for e in errs),
             'errors': form.errors.get_json_data()
         }, status=400)
 
 
+@require_POST
 @login_required
 def remove_project_or_self(request, slug):
     project = get_object_or_404(Project, slug=slug)
@@ -188,16 +200,14 @@ def remove_project_or_self(request, slug):
     
     return HttpResponseRedirect(reverse('project_list'))
 
+@require_POST
 @login_required
 def create_project(request):
-    print(request)
-    if request.method == 'POST':
-        project_name = request.POST.get('project_name')
-        print(project_name)
-        project = Project(user=request.user, title=project_name)
-        try:
-            project.save()
+    project_name = (request.POST.get('project_name') or '').strip()
+    if not project_name:
+        return JsonResponse({'status': 'error', 'message': 'Project name is required.'}, status=400)
+    if len(project_name) > 200:
+        return JsonResponse({'status': 'error', 'message': 'Project name is too long.'}, status=400)
 
-            return JsonResponse({'status': 'success','slug':project.slug, 'message': 'Project created successfully.'}, status=200)
-        except ValidationError as e:
-            return JsonResponse({'status': 'error','slug':project.slug, 'message': str(e)}, status=400)
+    project = Project.objects.create(user=request.user, title=project_name)
+    return JsonResponse({'status': 'success', 'slug': project.slug, 'message': 'Project created successfully.'}, status=200)

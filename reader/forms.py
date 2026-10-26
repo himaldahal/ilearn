@@ -27,7 +27,7 @@ class PdfUploadForm(forms.Form):
         if pdf_file:
             if pdf_file.size > 50 * 1024 * 1024:
                 raise ValidationError('PDF file size should not exceed 50 MB.')
-            if not pdf_file.name.endswith('.pdf'):
+            if not pdf_file.name.lower().endswith('.pdf'):
                 raise ValidationError('File must be a PDF.')
 
         cleaned_data['project'] = project
@@ -69,8 +69,8 @@ class AddProjectMemberForm(forms.Form):
 
         # Validate member email
         try:
-            member = User.objects.get(email=member_email)
-        except User.DoesNotExist:
+            member = User.objects.get(email__iexact=member_email)
+        except (User.DoesNotExist, User.MultipleObjectsReturned):
             raise ValidationError('Invalid member email. User not found.')
 
         # Check if the user is the project owner

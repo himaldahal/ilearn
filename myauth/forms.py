@@ -5,9 +5,12 @@ import re
 class Registration(forms.Form):
     fname = forms.CharField(max_length=20,label='First Name', required=True,widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}))
     lname = forms.CharField(max_length=20,label='Last Name', required=True,widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}))
-    email = forms.EmailField(max_length=30, required=True,widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}))
-    password = forms.CharField(max_length=30, required=True,  widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password'}))
-    confirm_password = forms.CharField(max_length=30, required=True,widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm Password'}))
+    email = forms.EmailField(max_length=254, required=True,widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address', 'autocomplete': 'email'}))
+    password = forms.CharField(max_length=128, required=True,  widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password', 'autocomplete': 'new-password'}))
+    confirm_password = forms.CharField(max_length=128, required=True,widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm Password', 'autocomplete': 'new-password'}))
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()
 
     def clean_password(self):
         password = self.cleaned_data.get('password')
@@ -31,11 +34,8 @@ class Registration(forms.Form):
 
 
 class Login(forms.Form):
-    email = forms.EmailField(max_length=30,  widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}))
-    password = forms.CharField(max_length=30, widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password'}))
+    email = forms.EmailField(max_length=254, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address', 'autocomplete': 'email'}))
+    password = forms.CharField(max_length=128, widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password', 'autocomplete': 'current-password'}))
 
-    def clean_password(self):
-        password = self.cleaned_data.get('password')
-        if len(password) < 8:
-            raise ValidationError("Password must be at least 8 characters long.")
-        return password
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()

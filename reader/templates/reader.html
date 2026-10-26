@@ -1,1019 +1,448 @@
 {% extends 'base.html' %}
-{% block title %} {{ project.title }} {% endblock %}
+{% block title %}{{ project.title }}{% endblock %}
 {% block head %}
-    <style>
-        :root {
-            --sidebar-width: 300px;
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            --secondary-gradient: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
-            --accent-gradient: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-            --success-gradient: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-        }
+<style>
+    html, body { height: 100%; }
+    body { overflow: hidden; display: flex; flex-direction: column; }
+    .site-nav { flex: none; }
 
-        body {
-            background: #0f172a;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            color: #e2e8f0;
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-        }
+    .shell { flex: 1; min-height: 0; display: flex; position: relative; }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 100% 0%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.15) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
+    /* panels */
+    .panel { background: var(--surface); flex: none; display: flex; flex-direction: column; min-height: 0; transition: margin .2s ease; }
+    #files-panel { width: 270px; border-right: 1px solid var(--border); }
+    #notes-panel { width: 380px; border-left: 1px solid var(--border); }
+    #files-panel.closed { margin-left: -270px; }
+    #notes-panel.closed { margin-right: -380px; }
+    .panel-head { padding: .9rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--border); }
+    .panel-head h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; }
 
-        .glass-effect {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-        }
+    /* files */
+    #file-list { list-style: none; margin: 0; padding: .5rem; overflow-y: auto; flex: 1; }
+    .file-row { display: flex; align-items: center; border-radius: 10px; margin-bottom: 2px; }
+    .file-row:hover { background: var(--surface-2); }
+    .file-row.active { background: rgba(99, 102, 241, .16); }
+    .file-item { flex: 1; min-width: 0; display: flex; align-items: center; gap: .6rem; padding: .6rem .7rem; color: var(--text); text-decoration: none; font-size: .92rem; }
+    .file-item i { color: #f87171; font-size: 1.05rem; flex: none; }
+    .file-row.active .file-item i { color: var(--accent); }
+    .file-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-del { border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; opacity: 0; flex: none; }
+    .file-row:hover .file-del, .file-del:focus-visible { opacity: 1; }
+    .file-del:hover { color: #f87171; background: rgba(239, 68, 68, .1); }
+    .list-empty { color: var(--muted); font-size: .9rem; padding: 1rem; text-align: center; }
 
-        #sidebar {
-            width: var(--sidebar-width);
-            min-height: 100vh;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-right: 1px solid var(--glass-border);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
-        }
+    /* center */
+    #reader-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+    .toolbar { display: flex; align-items: center; gap: .6rem; padding: .6rem .9rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .toolbar .titles { flex: 1; min-width: 0; }
+    .toolbar .project { font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .toolbar .doc { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tool-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; border: 1px solid var(--border); background: transparent; color: var(--muted); border-radius: 9px; transition: background .15s ease, color .15s ease; }
+    .tool-btn:hover, .tool-btn.on { background: var(--surface-2); color: var(--text); }
+    .viewer { position: relative; flex: 1; min-height: 0; }
+    #pdfViewer { width: 100%; height: 100%; border: 0; background: #2a2d33; display: block; }
+    #pdfViewer.hidden { display: none; }
 
-        #sidebar.collapsed {
-            margin-left: calc(-1 * var(--sidebar-width));
-        }
+    .empty-state { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 2rem; }
+    .empty-state.show { display: grid; }
+    .drop { border: 1.5px dashed var(--border); border-radius: 16px; padding: 3rem 2.5rem; max-width: 420px; color: var(--muted); }
+    .drop i { font-size: 2.2rem; color: var(--accent); }
+    .drop h3 { color: var(--text); font-size: 1.15rem; font-weight: 600; margin: .75rem 0 .35rem; }
+    .viewer.dragging .drop { border-color: var(--accent); background: rgba(99, 102, 241, .08); }
 
-        .sidebar-header {
-            padding: 2rem;
-            background: var(--primary-gradient);
-            margin-bottom: 1rem;
-        }
+    /* notes */
+    .tabs { display: flex; gap: .25rem; padding: .5rem .75rem 0; border-bottom: 1px solid var(--border); }
+    .tab { border: 0; background: transparent; color: var(--muted); padding: .55rem .8rem; font-weight: 500; font-size: .92rem; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-color: var(--accent); }
+    .tab .count { background: var(--surface-2); border-radius: 999px; padding: 0 .45rem; font-size: .75rem; margin-left: .3rem; color: var(--muted); }
+    .tab-body { flex: 1; min-height: 0; display: none; flex-direction: column; }
+    .tab-body.show { display: flex; }
+    #note-area {
+        flex: 1; width: 100%; resize: none; border: 0; outline: 0; background: transparent; color: var(--text);
+        padding: 1.1rem 1.2rem; font: inherit; font-size: .98rem; line-height: 1.7;
+    }
+    #note-area::placeholder { color: #6b7385; }
+    #note-area:disabled { opacity: .5; }
+    .note-foot { display: flex; align-items: center; justify-content: space-between; padding: .6rem 1rem; border-top: 1px solid var(--border); font-size: .82rem; color: var(--muted); }
+    #saveStatus { display: inline-flex; align-items: center; gap: .4rem; }
+    #saveStatus .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    #saveStatus.saved .dot { background: var(--success); }
+    #saveStatus.saving .dot { background: #f59e0b; }
+    #saveStatus.error .dot { background: var(--danger); }
+    #group-list { flex: 1; overflow-y: auto; padding: .9rem; display: grid; gap: .75rem; align-content: start; }
+    .gnote { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1rem; }
+    .gnote header { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(99, 102, 241, .2); color: #a5b4fc; display: grid; place-items: center; font-size: .75rem; font-weight: 700; }
+    .gnote .who { font-weight: 600; font-size: .9rem; }
+    .gnote .text { white-space: pre-wrap; word-break: break-word; line-height: 1.6; font-size: .93rem; color: #cfd4dc; }
+    .gnote .none { color: var(--muted); font-style: italic; }
 
-        .sidebar-header h3 {
-            color: white;
-            font-weight: 700;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
+    /* toasts */
+    #toasts { position: fixed; right: 1rem; bottom: 1rem; z-index: 1080; display: grid; gap: .5rem; }
+    .toast-msg { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); color: var(--text); padding: .65rem .9rem; border-radius: 10px; font-size: .9rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+    .toast-msg.error { border-left-color: var(--danger); }
+    .toast-msg.success { border-left-color: var(--success); }
 
-        #main-content {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            width: calc(100% - var(--sidebar-width));
-            background: transparent;
-        }
+    /* members modal */
+    .member-row { display: flex; align-items: center; gap: .75rem; padding: .65rem 0; border-bottom: 1px solid var(--border); }
+    .member-row:last-child { border-bottom: 0; }
+    .member-row .name { flex: 1; }
+    .member-row small { color: var(--muted); }
 
-        #main-content.collapsed {
-            width: 100%;
-        }
-
-        .content-header {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 1.25rem;
-        }
-
-        .file-item {
-            margin: 0.5rem 1rem;
-            padding: 1rem;
-            border-radius: 1rem;
-            color: #e2e8f0;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .file-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--secondary-gradient);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
-
-        .file-item:hover{
-            opacity: 1;
-            color:white;
-        }
-
-        .file-item.active {
-            background: var(--primary-gradient);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-
-
-        #uploadBtn {
-            background: var(--accent-gradient);
-            border: none;
-            padding: 1rem;
-            border-radius: 1rem;
-            transition: all 0.3s ease;
-            margin: 1rem;
-            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
-        }
-
-        #uploadBtn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
-        }
-
-        .card {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            overflow: hidden;
-        }
-
-        #note-section {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            color: #e2e8f0;
-            transition: all 0.3s ease;
-            min-height: 300px;
-        }
-
-        #note-section:focus {
-            background: rgba(15, 23, 42, 0.8);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
-            border-color: #6366f1;
-        }
-
-        .accordion-button {
-            background: rgba(15, 23, 42, 0.8) !important;
-            color: #e2e8f0 !important;
-            border: none;
-            padding: 1.25rem;
-        }
-
-        .accordion-button:not(.collapsed) {
-            background: var(--primary-gradient) !important;
-            color: white !important;
-        }
-
-        .accordion-body {
-            background: rgba(15, 23, 42, 0.6);
-            color: #e2e8f0;
-        }
-
-        #saveNotes {
-            background: var(--success-gradient);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.75rem;
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        #saveNotes:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-        }
-
-        /* Modern Alert Styling */
-        #alert-container {
-            position: fixed;
-            top: 2rem;
-            right: 2rem;
-            z-index: 1060;
-        }
-
-        .alert {
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            color: white;
-            padding: 1rem 1.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            animation: slideIn 0.3s ease forwards;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Modal Styling */
-        .modal-content {
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            color: #e2e8f0;
-        }
-
-        .modal-header {
-            border-bottom: 1px solid var(--glass-border);
-            background: var(--primary-gradient);
-        }
-
-        .modal-footer {
-            border-top: 1px solid var(--glass-border);
-        }
-
-        /* PDF Viewer Styling */
-        #pdfViewer {
-            border-radius: 1rem;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.8);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-gradient);
-            border-radius: 4px;
-        }
-
-        /* Loading Animation */
-        .loading-animation {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(99, 102, 241, 0.3);
-            border-radius: 50%;
-            border-top-color: #6366f1;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            #sidebar {
-                position: fixed;
-                left: 0;
-                top: 0;
-            }
-
-            #main-content {
-                width: 100%;
-            }
-
-            .content-header {
-                padding: 1rem;
-            }
-        }
-
-        /* Interactive Elements */
-        .btn {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translate(-50%, -50%) scale(0);
-            border-radius: 50%;
-            transition: transform 0.5s;
-        }
-
-        .btn:active::after {
-            transform: translate(-50%, -50%) scale(2);
-        }
-
-        /* Modern Toggle Button */
-        #sidebar-toggle {
-            background: transparent;
-            border: 1px solid var(--glass-border);
-            color: #e2e8f0;
-            padding: 0.75rem;
-            border-radius: 0.75rem;
-            transition: all 0.3s ease;
-        }
-
-        #sidebar-toggle:hover {
-            background: var(--glass-bg);
-            transform: scale(1.05);
-        }
-    </style>
-    <script>
-        var fm;
-    </script>
+    @media (max-width: 991px) {
+        #files-panel, #notes-panel { position: absolute; top: 0; bottom: 0; z-index: 20; box-shadow: 0 0 40px rgba(0, 0, 0, .5); }
+        #files-panel { left: 0; }
+        #notes-panel { right: 0; width: min(380px, 100vw); }
+        #files-panel.closed { margin-left: -280px; }
+        #notes-panel.closed { margin-right: -100vw; }
+    }
+</style>
 {% endblock %}
-{% block body %}
-{% include 'components/navbar.html'%}
-<div class="container-fluid">
-    <div class="modal fade" id="membersmodal" tabindex="-1" aria-labelledby="membersLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="membersLabel">Members</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <ul class="list-group list-group-flush" id="membersList">
-                        <li class="list-group-item fw-bold h4 d-flex align-items-center">
-                            <i class="bi bi-person-bounding-box me-2"></i>
-                            <span>
-                                {% if project.user == request.user %}
-                                    <span class="text-primary">You</span> <small class="text-muted">(Owner)</small>
-                                {% else %}
-                                    <span class="text-dark">{{ project.user.first_name }} {{ project.user.last_name }}</span> 
-                                    <small class="text-muted">(Owner)</small>
-                                {% endif %}
-                            </span>
-                        </li>
-                        {% for user in project.allowed_users.all %}
-                            <li class="list-group-item h5 d-flex align-items-center" id="member-{{ user.id }}">
-                                <i class="bi bi-person-circle text-secondary me-2"></i>
-                                <span class="text-dark">{{ user.first_name }} {{ user.last_name }}</span>
-                                <button class="btn btn-danger ms-auto" onclick="removeMember('{{ user.id }}', '{{ project.slug }}')">Remove</button>
-                            </li>
-                        {% empty %}
-                            <li class="list-group-item">
-                                <span class="text-muted">No users allowed.</span>
-                            </li>
-                        {% endfor %}
-                    </ul>
 
-                {% if request.user == project.user %}
-                <div id="errorMessages" class="mt-2"></div>
-                <form method="POST" id="addMember" action="{% url 'add_member_to_project' %}" class="d-flex align-items-center mt-3">
-                    {% csrf_token %}
-                    <div class="form-group mb-0 me-2">
-                        {{ add_mem_form.member_email }}
+{% block body %}
+{% include 'components/navbar.html' %}
+
+<div class="shell">
+    <aside id="files-panel" class="panel" aria-label="Files">
+        <div class="panel-head">
+            <h2>Files</h2>
+            <button class="btn btn-accent btn-sm" id="uploadBtn"><i class="bi bi-upload me-1"></i>Upload</button>
+        </div>
+        <form id="uploadForm" enctype="multipart/form-data" class="d-none">
+            {% csrf_token %}
+            <input type="hidden" name="project_slug" value="{{ project.slug }}">
+            <input name="pdf_file" id="pdf_file" type="file" accept="application/pdf,.pdf">
+        </form>
+        <ul id="file-list"><li class="list-empty">Loading files...</li></ul>
+    </aside>
+
+    <section id="reader-main">
+        <div class="toolbar">
+            <button class="tool-btn on" id="toggleFiles" aria-label="Toggle files" title="Files"><i class="bi bi-layout-sidebar"></i></button>
+            <div class="titles">
+                <div class="project">{{ project.title }}</div>
+                <div class="doc" id="docName">No file selected</div>
+            </div>
+            <button class="tool-btn" data-bs-toggle="modal" data-bs-target="#membersmodal" aria-label="Members" title="Members"><i class="bi bi-people"></i></button>
+            <button class="tool-btn on" id="toggleNotes" aria-label="Toggle notes" title="Notes"><i class="bi bi-journal-text"></i></button>
+        </div>
+        <div class="viewer" id="viewer">
+            <iframe id="pdfViewer" class="hidden" title="PDF viewer"></iframe>
+            <div class="empty-state" id="emptyState">
+                <div class="drop">
+                    <i class="bi bi-file-earmark-arrow-up"></i>
+                    <h3>Add your first PDF</h3>
+                    <p class="mb-3">Drop a file here or upload one. Up to 50 MB.</p>
+                    <button class="btn btn-accent" id="uploadBtn2">Choose a PDF</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <aside id="notes-panel" class="panel" aria-label="Notes">
+        <div class="tabs" role="tablist">
+            <button class="tab active" role="tab" data-tab="mine">My notes</button>
+            <button class="tab" role="tab" data-tab="group">Group<span class="count" id="groupCount">0</span></button>
+        </div>
+        <div class="tab-body show" id="tab-mine">
+            <textarea id="note-area" placeholder="Select a file, then write your notes here. They save automatically." disabled spellcheck="true"></textarea>
+            <div class="note-foot">
+                <span id="saveStatus"><span class="dot"></span><span id="saveText">Nothing to save</span></span>
+                <span id="wordCount">0 words</span>
+            </div>
+        </div>
+        <div class="tab-body" id="tab-group">
+            <div class="panel-head"><h2>From your group</h2><button class="tool-btn" id="refreshGroup" aria-label="Refresh" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button></div>
+            <div id="group-list"></div>
+        </div>
+    </aside>
+</div>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<div class="modal fade" id="membersmodal" tabindex="-1" aria-labelledby="membersLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="membersLabel">Members</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="membersList">
+                    <div class="member-row">
+                        <i class="bi bi-person-circle fs-4 text-secondary"></i>
+                        <span class="name">{% if project.user == request.user %}You{% else %}{{ project.user.first_name }} {{ project.user.last_name }}{% endif %} <small>Owner</small></span>
                     </div>
+                    {% for u in project.allowed_users.all %}
+                        <div class="member-row" id="member-{{ u.id }}">
+                            <i class="bi bi-person-circle fs-4 text-secondary"></i>
+                            <span class="name">{{ u.first_name }} {{ u.last_name }}</span>
+                            {% if request.user == project.user %}<button class="btn btn-danger-soft btn-sm" data-remove="{{ u.id }}">Remove</button>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if request.user == project.user %}
+                <div id="errorMessages" class="mt-3"></div>
+                <form method="POST" id="addMember" action="{% url 'add_member_to_project' %}" class="d-flex gap-2 mt-3">
+                    {% csrf_token %}
+                    {{ add_mem_form.member_email }}
                     <input type="hidden" name="project_slug" value="{{ project.slug }}">
-                    <button type="submit" class="btn btn-danger">Add</button>
+                    <button type="submit" class="btn btn-accent">Add</button>
                 </form>
                 {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    {% comment %} member mgmt modal {% endcomment %}
-
-    <div class="d-flex">
-        <div id="sidebar" class="collapsed">
-            <div class="sidebar-header">
-                <h3 class="mb-4"><i class="bi bi-book"></i><span>iLearn</span></h3>
-            </div>
-            <div id="alert-container" class="mb-3"></div>
-            <div class="mb-3">
-                <form id="uploadForm" enctype="multipart/form-data" class="pe-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="project_slug" value="{{ project.slug }}">
-                    <input name="pdf_file" id="pdf_file" type="file" accept=".pdf" class="d-none" required>
-                </form>
-                <button class="btn btn-lg btn-dark btn-outline-secondary text-light w-75" id="uploadBtn">
-                    Upload <i class="bi bi-cloud-upload"></i>
-                </button>
-            </div>
-
-            <div class="file-list-container">
-                <ul class="nav flex-column" id="file-list">
-                    <li class="nav-item text-center text-muted p-3">Loading files...</li>
-                </ul>
-            </div>
-        </div>
-
-        <div id="main-content" class="flex-grow-1">
-            <div class="content-header sticky-top d-flex justify-content-between align-items-center">
-                <button id="sidebar-toggle" class="btn btn-outline-secondary">
-                    <i class="bi bi-list"></i>
-                </button>
-                <h5 class="text-break mb-0 mb-0 flex-grow-1 ps-2 ">{{ project.title }}</h5>
-                <button class="btn btn-danger btn-outline-success text-light" data-bs-toggle="modal" data-bs-target="#membersmodal">
-                    <i class="bi bi-people-fill"></i>
-                </button>
-            </div>
-
-
-            
-            <div class="row g-4 p-3">
-                <div class="col-lg-8">
-                    <div class="card shadow-sm">
-                        <div class="card-body p-0">
-                            <iframe id="pdfViewer" name="bookf" class="w-100" style="height:85vh;">
-                                <p>Please select a PDF to view</p>
-                            </iframe>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-4">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="card-title mb-0 text-light">Quick Notes</h5>
-                                <div class="d-flex align-items-center">
-                                    <span id="saveStatus" class="me-2"></span>
-                                    <button id="saveNotes" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-save"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="note-section" class="form-control" contenteditable="true" style="min-height: 300px;">
-                               </div>
-                        </div>
-                    </div>
-                    <div id="othernotes"  class="accordion accordion-flush" ></div>
-                </div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
+
 {% block script %}
+<style>.btn-danger-soft { background: transparent; border: 1px solid var(--border); color: #f87171; } .btn-danger-soft:hover { background: rgba(239,68,68,.1); color: #f87171; }</style>
 <script>
-    function removeMember(memberId, projectSlug) {
-        $.ajax({
-            type: "POST",
-            url: "{% url 'remove_member_from_project' %}",
-            data: {
-                'csrfmiddlewaretoken': '{{ csrf_token }}',
-                'member_id': memberId,
-                'project_slug': projectSlug
-            },
-            success: function(response) {
-                if (response.status === 'success') {
-                    $('#errorMessages').html('<div class="alert alert-success">' + response.message + '</div>');
-                    $('#member-' + response.removed_member_id).remove(); // Remove the member from the list
-                } else {
-                    $('#errorMessages').html('<div class="alert alert-danger">An error occurred. Please try again.</div>');
-                }
-            },
-            error: function(xhr) {
-                let errors = xhr.responseJSON.errors;
-                let errorHtml = '<div class="alert alert-danger"><ul>';
-                for (let field in errors) {
-                    errors[field].forEach(function(errorObj) {
-                        errorHtml += '<li>' + errorObj.message + '</li>';
-                    });
-                }
-                errorHtml += '</ul></div>';
-                $('#errorMessages').html(errorHtml);
-            }
-        });
-    }
+(function () {
+    const URLS = {
+        files: `{% url 'file_listing' slug=project.slug %}`,
+        upload: `{% url 'upload_pdf' %}`,
+        save: `{% url 'save_note' %}`,
+        removeMember: `{% url 'remove_member_from_project' %}`,
+        selfNote: s => `/api/notes/self/${s}/`,
+        groupNotes: s => `/api/notes/list/${s}/`,
+        remove: s => `/api/resource/remove/${s}`,
+        embed: s => `/embed/resource/${s}/`
+    };
+    const MAX_BYTES = 50 * 1024 * 1024;
+    const AUTOSAVE_MS = 1200;
+    const $ = id => document.getElementById(id);
+    const csrf = () => document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 
-$(document).ready(function() {
- 
-    const AppState = {
-        currentSourceSlug: null,
-        isEditing: false,
-        lastSavedContent: '',
-        saving: false
-    }; 
-
-
-    const ELEMENTS = {
-        sidebar: $('#sidebar'),
-        mainContent: $('#main-content'),
-        sidebarToggle: $('#sidebar-toggle'),
-        fileList: $('#file-list'),
-        noteSection: $('#note-section'),
-        pdfViewer: $('#pdfViewer'),
-        uploadBtn: $('#uploadBtn'),
-        uploadForm: $('#uploadForm'),
-        pdfFile: $('#pdf_file'),
-        saveStatus: $('#saveStatus'),
-        saveNotesBtn: $('#saveNotes'),
-        otherNotes: $('#othernotes'),
-        alertContainer: $('#alert-container'),
-
-        validate() {
-            const missingElements = Object.entries(this)
-                .filter(([key, value]) => key !== 'validate' && !value?.length)
-                .map(([key]) => key);
-
-            if (missingElements.length) {
-                console.error('Missing DOM elements:', missingElements);
-                throw new Error(`Required DOM elements missing: ${missingElements.join(', ')}`);
-            }
-        }
+    // notes saved by the old editor were HTML; show them as text
+    const plain = s => {
+        s = s || '';
+        if (!/^\s*<(p|div|br|span)[\s>\/]/i.test(s)) return s;
+        const doc = new DOMParser().parseFromString(s.replace(/<\/(p|div)>/gi, '\n').replace(/<br\s*\/?>/gi, '\n'), 'text/html');
+        return doc.body.textContent.trim();
     };
 
-    function load_self_notes(slug) {
-        $.ajax({
-            url: `/api/notes/self/${slug}`,
-            cache: false,
-            success: function(resp) {
-
-                $("#note-section").empty();
-                $("#note-section").append(resp[0].content);
-            }
-        });
-        return false;
-    }
-    const CONFIG = {
-        apiUrls: {
-            fileListing: `{% url 'file_listing' slug=project.slug %}`,
-            uploadPdf: `{% url 'upload_pdf' %}`,
-            saveNotes: `/api/notes/save/`,
-            getNotes: (slug) => `/api/notes/list/${slug}/`,
-            getSourceNotes: (slug) => `/api/notes/${slug}/`
-        },
-        autoSaveDelay: 2000,
-        alertDuration: 5000,
-        maxFileSize: 10 * 1024 * 1024, // 10MB
-        allowedMimeTypes: ['application/pdf'],
-        isDevelopment: window.location.hostname === 'localhost'
-    };
-
-    class AlertSystem {
-        static queue = [];
-        static isProcessing = false;
-
-        static show(type, message, duration = CONFIG.alertDuration) {
-            this.queue.push({ type, message, duration });
-            if (!this.isProcessing) {
-                this.processQueue();
-            }
-        }
-
-        static async processQueue() {
-            if (!this.queue.length) {
-                this.isProcessing = false;
-                return;
-            }
-
-            this.isProcessing = true;
-            const { type, message, duration } = this.queue.shift();
-
-            const alertClass = type === 'error' ? 'danger' : type;
-            const $alert = $(`
-                <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
-                    ${this.sanitizeHtml(message)}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            `).appendTo(ELEMENTS.alertContainer);
-
-            await new Promise(resolve => setTimeout(resolve, duration));
-            $alert.alert('close');
-            
-            setTimeout(() => this.processQueue(), 300);
-        }
-
-        static sanitizeHtml(str) {
-            return $('<div>').text(str).html();
-        }
+    function toast(msg, type) {
+        const el = document.createElement('div');
+        el.className = 'toast-msg ' + (type || '');
+        el.textContent = msg;
+        $('toasts').appendChild(el);
+        setTimeout(() => el.remove(), 4000);
     }
 
-    class NotesManager {
-        constructor() {
-            this.saveTimeout = null;
-            this.lastSavedContent = '';
-            this.bindEvents();
-            this.setupAutosave();
+    async function api(url, opts) {
+        const res = await fetch(url, Object.assign({ credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } }, opts));
+        let data = null;
+        try { data = await res.json(); } catch (e) {}
+        if (!res.ok) {
+            const m = data && (data.message || data.error);
+            throw new Error(typeof m === 'string' ? m : (m ? Object.values(m).join(' ') : res.statusText));
         }
-
-        bindEvents() {
-            ELEMENTS.noteSection
-                .on('input', this.handleInput.bind(this))
-                .on('focus', this.handleFocus.bind(this))
-                .on('blur', this.handleBlur.bind(this));
-
-            ELEMENTS.saveNotesBtn.on('click', () => this.saveNotes(true));
-
-            $(document).on('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    e.preventDefault();
-                    this.saveNotes(true);
-                }
-            });
-        }
-
-        setupAutosave() {
-            setInterval(() => {
-                if (this.hasUnsavedChanges()) {
-                    this.saveNotes();
-                }
-            }, CONFIG.autoSaveDelay);
-        }
-
-        handleInput() {
-            if (this.saveTimeout) {
-                clearTimeout(this.saveTimeout);
-            }
-            this.updateStatusMessage('Typing...', 'warning');
-            this.saveTimeout = setTimeout(() => this.saveNotes(), CONFIG.autoSaveDelay);
-        }
-
-        handleFocus() {
-            if (ELEMENTS.noteSection.text().trim() === 'Start typing your notes here...') {
-                ELEMENTS.noteSection.empty();
-            }
-        }
-
-        handleBlur() {
-            if (ELEMENTS.noteSection.is(':empty')) {
-                ELEMENTS.noteSection.text('Start typing your notes here...');
-            }
-        }
-
-        hasUnsavedChanges() {
-            const currentContent = ELEMENTS.noteSection.html().trim();
-            return currentContent !== this.lastSavedContent;
-        }
-
-        async saveNotes(forceSave = false) {
-            if (!AppState.currentSourceSlug) {
-                AlertSystem.show('error', 'No document selected');
-                return;
-            }
-
-            const content = ELEMENTS.noteSection.html().trim();
-            if (!content || (!forceSave && !this.hasUnsavedChanges())) {
-                return;
-            }
-
-            if (AppState.saving) {
-                return;
-            }
-
-            AppState.saving = true;
-            this.updateStatusMessage('Saving...', 'info');
-
-            try {
-                const response = await $.ajax({
-                    url: CONFIG.apiUrls.saveNotes,
-                    method: 'POST',
-                    headers: { 
-                        'X-CSRFToken': this.getCSRFToken()
-                    },
-                    data: {
-                        source_slug: AppState.currentSourceSlug,
-                        content: content
-                    }
-                });
-
-                this.lastSavedContent = content;
-                this.updateStatusMessage('Saved', 'success');
-                await this.loadSavedNotes();
-            } catch (error) {
-                console.error('Save failed:', error);
-                this.updateStatusMessage('Save failed', 'danger');
-                AlertSystem.show('error', 'Failed to save notes: ' + this.getErrorMessage(error));
-            } finally {
-                AppState.saving = false;
-            }
-        }
-
-        async loadSavedNotes() {
-            if (!AppState.currentSourceSlug) return;
-
-            try {
-                const notes = await $.ajax({
-                    url: CONFIG.apiUrls.getNotes(AppState.currentSourceSlug),
-                    method: 'GET',
-                    headers: { 'X-CSRFToken': this.getCSRFToken() }
-                });
-
-                this.renderNotes(notes);
-            } catch (error) {
-                console.error('Error loading notes:', error);
-                AlertSystem.show('error', 'Failed to load notes: ' + this.getErrorMessage(error));
-            }
-        }
-
-        renderNotes(notes) {
-            if (!Array.isArray(notes)) {
-                console.error('Invalid notes data:', notes);
-                return;
-            }
-
-            const $container = ELEMENTS.otherNotes.empty();
-
-            if (!notes.length) {
-                $container.append('<div class="text-muted p-3">No notes available</div>');
-                return;
-            }
-
-            const accordion = notes.map((note, index) => this.createAccordionItem(note, index)).join('');
-            $container.html(accordion);
-        }
-
-        createAccordionItem(note, index) {
-            const headerId = `heading-${index}`;
-            const collapseId = `collapse-${index}`;
-            const userName = `${note.user__first_name || ''} ${note.user__last_name || ''}`.trim() || 'Anonymous';
-            const date = new Date(note.created_at).toLocaleString();
-
-            return `
-                <div class="accordion-item text-light">
-                    <h2 class="accordion-header" id="${headerId}">
-                        <button class="accordion-button collapsed text-light" type="button" 
-                                data-bs-toggle="collapse" 
-                                data-bs-target="#${collapseId}" 
-                                aria-expanded="false" 
-                                aria-controls="${collapseId}">
-                            <div class="d-flex w-100 justify-content-between">
-                                <span>${AlertSystem.sanitizeHtml(userName)}</span>
-                            </div>
-                        </button>
-                    </h2>
-                    <div id="${collapseId}" 
-                         class="accordion-collapse collapse" 
-                         aria-labelledby="${headerId}" 
-                         data-bs-parent="#othernotes">
-                        <div class="accordion-body">
-                            ${AlertSystem.sanitizeHtml(note.content || '')}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        updateStatusMessage(message, type = 'info') {
-            ELEMENTS.saveStatus
-                .text(message)
-                .removeClass('text-success text-warning text-danger text-info')
-                .addClass(`text-${type}`);
-        }
-
-        getCSRFToken() {
-            return document.querySelector('[name=csrfmiddlewaretoken]').value;
-        }
-
-        getErrorMessage(error) {
-            if (error.responseJSON?.message) {
-                return error.responseJSON.message;
-            }
-            return error.statusText || 'Unknown error occurred';
-        }
+        return data;
     }
 
-    class FileManager {
-        constructor() {
-            this.bindEvents();
-        }
-    
-        bindEvents() {
-            ELEMENTS.fileList.on('click', '.file-item', this.handleFileSelection.bind(this));
-            ELEMENTS.uploadBtn.on('click', () => ELEMENTS.pdfFile.click());
-            ELEMENTS.pdfFile.on('change', this.handleFileUpload.bind(this));
-        }
-    
-        async fetchFiles() {
-            try {
-                const files = await $.ajax({
-                    url: CONFIG.apiUrls.fileListing,
-                    method: 'GET'
-                });
-                this.updateFileList(files);
-            } catch (error) {
-                AlertSystem.show('error', 'Failed to load files: ' + this.getErrorMessage(error));
-            }
-        }
-    
-        deleteFiles(slug) {
-            if (confirm('Are you sure you want to remove this source? This action cannot be undone.')) {
-                $.ajax({
-                    url: `/api/resource/remove/${slug}`,
-                    type: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    success: (response) => {
-                        if (response.status === 'success') {
-                            AlertSystem.show('warning', response.message);
-                            $(`[data-source-slug="${slug}"]`).fadeOut(300, function() {
-                                $(this).remove();
-                            });
-                            this.fetchFiles(); 
-                        }
-                    },
-                    error: (xhr) => {
-                        let errorMessage = 'An error occurred.';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        alert(errorMessage);
-                    }
-                });
-            }
-            return false;
-        }
-    
-        updateFileList(files) {
-            const $container = ELEMENTS.fileList.empty();
-    
-            if (!files?.length) {
-                $container.append('<li class="nav-item text-center text-light p-3">No files available</li>');
-                return;
-            }
-    
-            files.forEach(file => {
-                const $fileItem = $(`
-                    <li class="nav-item mb-1 d-flex align-items-center">
-                        <a href="#" onclick="fm.deleteFiles('${file.slug}')" class="nav-link btn btn-link p-2"><i class="bi bi-trash-fill"></i></a>
-                        <a href="#" class="nav-link file-item active flex-grow-1" 
-                           id="${AlertSystem.sanitizeHtml(file.slug)}" 
-                           data-filepath="/media/${AlertSystem.sanitizeHtml(file.pdf)}">
-                            <i class="bi bi-file-earmark-pdf"></i> 
-                            <span>${AlertSystem.sanitizeHtml(file.title)}</span>
-                        </a>
-                    </li>
-                `);
-                $container.append($fileItem);
-            });
-    
-            const $firstFile = $container.find('.file-item').first();
-            if ($firstFile.length) {
-                $firstFile.click();
-            }
-        }
-    
-        handleFileSelection(e) {
-            e.preventDefault();
-            const $target = $(e.currentTarget);
-    
-            ELEMENTS.fileList.find('.file-item').removeClass('active');
-            $target.addClass('active');
-    
-            AppState.currentSourceSlug = $target.attr('id');
-            this.loadPdf($target.data('filepath'));
-            load_self_notes($target.attr('id'));
-            new NotesManager().loadSavedNotes();
-        }
-    
-        loadPdf(filepath) {
-            ELEMENTS.pdfViewer
-                .attr('src', filepath)
-                .on('error', () => AlertSystem.show('error', 'Failed to load PDF'));
-        }
-    
-        async handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!this.validateFile(file)) return;
-    
-            const formData = new FormData(ELEMENTS.uploadForm[0]);
-    
-            try {
-                await $.ajax({
-                    url: CONFIG.apiUrls.uploadPdf,
-                    type: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false
-                });
-    
-                AlertSystem.show('success', 'File uploaded successfully');
-                await this.fetchFiles();
-            } catch (error) {
-                AlertSystem.show('error', 'Upload failed: ' + this.getErrorMessage(error));
-            }
-        }
-    
-        validateFile(file) {
-            if (!file) return false;
-    
-            if (!CONFIG.allowedMimeTypes.includes(file.type)) {
-                AlertSystem.show('error', 'Please select a valid PDF file');
-                return false;
-            }
-    
-            if (file.size > CONFIG.maxFileSize) {
-                AlertSystem.show('error', 'File size exceeds maximum limit (10MB)');
-                return false;
-            }
-    
-            return true;
-        }
-    
-        getErrorMessage(error) {
-            return error.responseJSON?.message || error.responseText || error.statusText || 'Unknown error occurred';
-        }
+    /* ---------- panels ---------- */
+    const filesPanel = $('files-panel'), notesPanel = $('notes-panel');
+    const narrow = () => window.matchMedia('(max-width: 991px)').matches;
+    function setPanel(panel, btn, key, open) {
+        panel.classList.toggle('closed', !open);
+        btn.classList.toggle('on', open);
+        store.set(key, open ? '1' : '0');
     }
-    
+    const savedFiles = store.get('ilearn.files'), savedNotes = store.get('ilearn.notes');
+    setPanel(filesPanel, $('toggleFiles'), 'ilearn.files', narrow() ? false : savedFiles !== '0');
+    setPanel(notesPanel, $('toggleNotes'), 'ilearn.notes', narrow() ? false : savedNotes !== '0');
+    $('toggleFiles').onclick = () => setPanel(filesPanel, $('toggleFiles'), 'ilearn.files', filesPanel.classList.contains('closed'));
+    $('toggleNotes').onclick = () => setPanel(notesPanel, $('toggleNotes'), 'ilearn.notes', notesPanel.classList.contains('closed'));
 
-    class LayoutManager {
-        constructor() {
-            this.bindEvents();
-        }
-
-        bindEvents() {
-            ELEMENTS.sidebarToggle.on('click', () => {
-                ELEMENTS.sidebar.toggleClass('collapsed');
-                ELEMENTS.mainContent.toggleClass('collapsed');
-                this.saveSidebarState();
-            });
-
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            if (isCollapsed) {
-                ELEMENTS.sidebar.addClass('collapsed');
-                ELEMENTS.mainContent.addClass('collapsed');
-            }
-        }
-
-        saveSidebarState() {
-            localStorage.setItem('sidebarCollapsed', ELEMENTS.sidebar.hasClass('collapsed'));
-        }
-    }
-
-    try {
-        ELEMENTS.validate();
-
-        const layoutManager = new LayoutManager();
-        const fileManager = new FileManager();
-        const notesManager = new NotesManager();
-
-        fileManager.fetchFiles();
-        if (CONFIG.isDevelopment) {
-            console.log('PDF Notes Manager initialized successfully');
-        }
-    } catch (error) {
-        console.error('Initialization failed:', error);
-        AlertSystem.show('error', 'Failed to initialize application: ' + error.message);
-    }
-    fm = new FileManager();
-   
-    setInterval(function() {
-        new NotesManager().loadSavedNotes();
-    }, 30000); 
-
-    //add memeber 
-    $('#addMember').submit(function(e) {
-        e.preventDefault(); // Prevent default form submission
-
-        $.ajax({
-            type: "POST",
-            url: $(this).attr('action'),
-            data: $(this).serialize(),
-            success: function(response) {
-                if (response.status === 'success') {
-                    $('#errorMessages').html('<div class="alert alert-success">' + response.message + '</div>');
-                    $('#membersList').append(
-                        '<li class="list-group-item h5 d-flex align-items-center">' +
-                        '<i class="bi bi-person-circle text-secondary me-2"></i>' +
-                        '<span class="text-dark">' + response.new_member_name + '</span>' +
-                        '</li>'
-                    );
-                } else {
-                    $('#errorMessages').html('<div class="alert alert-danger">An error occurred. Please try again.</div>');
-                }
-            },
-            error: function(xhr) {
-                let errors = xhr.responseJSON.errors;
-                let errorHtml = '<div class="alert alert-danger"><ul>';
-                for (let field in errors) {
-                    errors[field].forEach(function(errorObj) {
-                        errorHtml += '<li>' + errorObj.message + '</li>';
-                    });
-                }
-                errorHtml += '</ul></div>';
-                $('#errorMessages').html(errorHtml);
-            }
-        });
+    document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+        $('tab-mine').classList.toggle('show', t.dataset.tab === 'mine');
+        $('tab-group').classList.toggle('show', t.dataset.tab === 'group');
+        if (t.dataset.tab === 'group') notes.loadGroup();
     });
 
-});
+    /* ---------- notes ---------- */
+    const area = $('note-area');
+    const notes = {
+        slug: null, lastSaved: '', timer: null, saving: null, loadToken: 0,
+        status(kind, text) { const s = $('saveStatus'); s.className = kind; $('saveText').textContent = text; },
+        words() { const n = (area.value.trim().match(/\S+/g) || []).length; $('wordCount').textContent = n + (n === 1 ? ' word' : ' words'); },
+        dirty() { return this.slug && area.value !== this.lastSaved; },
+        onInput() {
+            this.words();
+            if (!this.slug) return;
+            clearTimeout(this.timer);
+            if (!this.dirty()) return this.status('saved', area.value ? 'Saved' : 'Nothing to save');
+            this.status('saving', 'Unsaved changes');
+            this.timer = setTimeout(() => this.save(), AUTOSAVE_MS);
+        },
+        async save() {
+            clearTimeout(this.timer);
+            if (this.saving) { await this.saving; }
+            if (!this.dirty()) return;
+            const slug = this.slug, content = area.value;
+            this.status('saving', 'Saving...');
+            this.saving = api(URLS.save, { method: 'POST', body: new URLSearchParams({ source_slug: slug, content }) })
+                .then(() => {
+                    if (this.slug === slug) {
+                        this.lastSaved = content;
+                        this.status('saved', area.value === content ? 'Saved' : 'Unsaved changes');
+                        if (area.value !== content) this.timer = setTimeout(() => this.save(), AUTOSAVE_MS);
+                    }
+                })
+                .catch(e => { this.status('error', 'Save failed'); toast('Could not save notes: ' + e.message, 'error'); })
+                .finally(() => { this.saving = null; });
+            return this.saving;
+        },
+        async open(slug) {
+            await this.save();
+            const token = ++this.loadToken;
+            this.slug = slug; this.lastSaved = ''; area.value = ''; area.disabled = true;
+            this.status('', 'Loading...'); this.words();
+            try {
+                const resp = await api(URLS.selfNote(slug));
+                if (token !== this.loadToken) return;
+                const text = plain(resp[0] && resp[0].content);
+                area.value = text; this.lastSaved = text;
+                area.disabled = false; this.words(); this.status('saved', text ? 'Saved' : 'Nothing to save');
+            } catch (e) {
+                if (token !== this.loadToken) return;
+                this.status('error', 'Could not load'); toast('Could not load notes: ' + e.message, 'error');
+            }
+            this.loadGroup();
+        },
+        async loadGroup() {
+            if (!this.slug) return;
+            const slug = this.slug;
+            try {
+                const list = await api(URLS.groupNotes(slug));
+                if (slug !== this.slug) return;
+                const box = $('group-list'); box.textContent = '';
+                $('groupCount').textContent = list.length;
+                if (!list.length) {
+                    const d = document.createElement('div'); d.className = 'list-empty'; d.textContent = 'No one else has added notes to this file yet.'; box.appendChild(d); return;
+                }
+                list.forEach(n => {
+                    const name = ((n.user__first_name || '') + ' ' + (n.user__last_name || '')).trim() || 'Member';
+                    const card = document.createElement('article'); card.className = 'gnote';
+                    const head = document.createElement('header');
+                    const av = document.createElement('div'); av.className = 'avatar'; av.textContent = name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                    const who = document.createElement('div'); who.className = 'who'; who.textContent = name;
+                    head.append(av, who);
+                    const body = document.createElement('div'); body.className = 'text';
+                    const t = plain(n.content).trim();
+                    if (t) body.textContent = t; else { body.classList.add('none'); body.textContent = 'Empty note'; }
+                    card.append(head, body); box.appendChild(card);
+                });
+            } catch (e) { /* keep the last list on transient errors */ }
+        }
+    };
+    area.addEventListener('input', () => notes.onInput());
+    document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); notes.save(); } });
+    $('refreshGroup').onclick = () => notes.loadGroup();
+    setInterval(() => { if (!document.hidden) notes.loadGroup(); }, 30000);
+    window.addEventListener('pagehide', () => {
+        if (notes.dirty()) fetch(URLS.save, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() }, body: new URLSearchParams({ source_slug: notes.slug, content: area.value }) });
+    });
+    window.addEventListener('beforeunload', e => { if (notes.dirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+    /* ---------- files ---------- */
+    const list = $('file-list');
+    let current = null;
+    function show(slug, title) {
+        current = slug;
+        document.querySelectorAll('.file-row').forEach(r => r.classList.toggle('active', r.dataset.slug === slug));
+        $('docName').textContent = title;
+        const v = $('pdfViewer'); v.classList.remove('hidden'); v.src = URLS.embed(slug);
+        $('emptyState').classList.remove('show');
+        notes.open(slug);
+        if (narrow()) setPanel(filesPanel, $('toggleFiles'), 'ilearn.files', false);
+    }
+    function renderFiles(files, select) {
+        list.textContent = '';
+        if (!files.length) {
+            const li = document.createElement('li'); li.className = 'list-empty'; li.textContent = 'No files yet'; list.appendChild(li);
+            current = null; notes.slug = null; area.value = ''; area.disabled = true; notes.words(); notes.status('', 'Nothing to save');
+            $('pdfViewer').classList.add('hidden'); $('pdfViewer').removeAttribute('src');
+            $('docName').textContent = 'No file selected'; $('emptyState').classList.add('show'); $('groupCount').textContent = '0';
+            return;
+        }
+        files.forEach(f => {
+            const li = document.createElement('li'); li.className = 'file-row'; li.dataset.slug = f.slug;
+            const a = document.createElement('a'); a.href = '#'; a.className = 'file-item';
+            const ic = document.createElement('i'); ic.className = 'bi bi-file-earmark-pdf';
+            const sp = document.createElement('span'); sp.textContent = f.title; sp.title = f.title;
+            a.append(ic, sp); a.onclick = e => { e.preventDefault(); if (current !== f.slug) show(f.slug, f.title); };
+            const del = document.createElement('button'); del.className = 'file-del'; del.setAttribute('aria-label', 'Remove ' + f.title); del.innerHTML = '<i class="bi bi-trash3"></i>';
+            del.onclick = () => removeFile(f);
+            li.append(a, del); list.appendChild(li);
+        });
+        const keep = files.find(f => f.slug === (select || current)) || files[0];
+        if (keep.slug !== current || select) show(keep.slug, keep.title);
+        else document.querySelectorAll('.file-row').forEach(r => r.classList.toggle('active', r.dataset.slug === current));
+    }
+    async function loadFiles(select) {
+        try { renderFiles(await api(URLS.files), select); }
+        catch (e) { list.innerHTML = ''; toast('Could not load files: ' + e.message, 'error'); }
+    }
+    async function removeFile(f) {
+        if (!confirm('Remove "' + f.title + '" and its notes? This cannot be undone.')) return;
+        try {
+            if (current === f.slug) { await notes.save(); current = null; }
+            await api(URLS.remove(f.slug), { method: 'POST' });
+            toast('File removed', 'success'); loadFiles();
+        } catch (e) { toast(e.message, 'error'); }
+    }
+    async function upload(file) {
+        if (!file) return;
+        if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) return toast('Please choose a PDF file', 'error');
+        if (file.size > MAX_BYTES) return toast('That file is over the 50 MB limit', 'error');
+        const fd = new FormData($('uploadForm')); fd.set('pdf_file', file);
+        toast('Uploading ' + file.name + '...');
+        try {
+            await api(URLS.upload, { method: 'POST', body: fd });
+            toast('Upload complete', 'success');
+            const before = new Set(Array.from(document.querySelectorAll('.file-row')).map(r => r.dataset.slug));
+            const files = await api(URLS.files);
+            const added = files.find(f => !before.has(f.slug));
+            renderFiles(files, added && added.slug);
+        } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
+    }
+    $('uploadBtn').onclick = $('uploadBtn2').onclick = () => $('pdf_file').click();
+    $('pdf_file').onchange = e => { upload(e.target.files[0]); e.target.value = ''; };
+
+    const viewer = $('viewer');
+    ['dragenter', 'dragover'].forEach(ev => viewer.addEventListener(ev, e => { e.preventDefault(); viewer.classList.add('dragging'); }));
+    ['dragleave', 'drop'].forEach(ev => viewer.addEventListener(ev, e => { e.preventDefault(); viewer.classList.remove('dragging'); }));
+    viewer.addEventListener('drop', e => upload(e.dataTransfer.files[0]));
+
+    /* ---------- members ---------- */
+    function memberAlert(type, html) { const b = $('errorMessages'); if (b) b.innerHTML = '<div class="alert alert-' + type + ' py-2 mb-0">' + html + '</div>'; }
+    const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+    $('membersList').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-remove]'); if (!btn) return;
+        try {
+            const r = await api(URLS.removeMember, { method: 'POST', body: new URLSearchParams({ member_id: btn.dataset.remove, project_slug: '{{ project.slug }}' }) });
+            const row = $('member-' + r.removed_member_id); if (row) row.remove();
+            memberAlert('success', esc(r.message));
+        } catch (err) { memberAlert('danger', esc(err.message)); }
+    });
+    const addForm = $('addMember');
+    if (addForm) addForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        try {
+            const r = await api(addForm.action, { method: 'POST', body: new FormData(addForm) });
+            const row = document.createElement('div'); row.className = 'member-row'; row.id = 'member-' + r.new_member_id;
+            row.innerHTML = '<i class="bi bi-person-circle fs-4 text-secondary"></i><span class="name">' + esc(r.new_member_name) + '</span><button class="btn btn-danger-soft btn-sm" data-remove="' + r.new_member_id + '">Remove</button>';
+            $('membersList').appendChild(row); addForm.reset(); memberAlert('success', esc(r.message));
+        } catch (err) { memberAlert('danger', esc(err.message)); }
+    });
+
+    loadFiles();
+})();
 </script>
 {% endblock %}

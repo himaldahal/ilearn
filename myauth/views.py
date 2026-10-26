@@ -6,6 +6,8 @@ from .forms import Registration, Login
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 from django.db import IntegrityError
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 def register(request):
     if request.user.is_authenticated:
@@ -29,7 +31,7 @@ def register(request):
                 counter += 1
 
             # Check if email already exists
-            if User.objects.filter(email=email).exists():
+            if User.objects.filter(email__iexact=email).exists():
                 form.add_error('email', _('A user with this email already exists.'))
             else:
                 try:
@@ -58,35 +60,29 @@ def login(request):
     if request.user.is_authenticated:
         return redirect('home')
 
+    next_url = request.POST.get('next') or request.GET.get('next', '')
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = ''
+
     if request.method == 'POST':
         form = Login(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            
-            # Authenticate user by email
-            try:
-                # Retrieve the user based on email (used as username here)
-                user = User.objects.get(email=email)
-                # Check if the password matches
-                if user.check_password(password):
-                    auth_login(request, user)
-                    messages.success(request, f'Welcome back, {user.first_name}!')
-                    return redirect('home')
-                else:
-                    messages.error(request, 'Invalid email or password.')
-            except User.DoesNotExist:
-                messages.error(request, 'Invalid email or password.')
-        else:
-            messages.error(request, 'Please correct the errors below.')
+
+            user = User.objects.filter(email__iexact=email).first()
+            if user and user.check_password(password) and user.is_active:
+                auth_login(request, user)
+                messages.success(request, f'Welcome back, {user.first_name}!')
+                return redirect(next_url or 'home')
+            messages.error(request, 'Invalid email or password.')
     else:
         form = Login()
 
-    return render(request, 'registration/login.html', {'form': form})
+    return render(request, 'registration/login.html', {'form': form, 'next': next_url})
 
+
+@require_POST
 def auth_logout(request):
-    if request.user.is_authenticated is False:
-        return redirect('home')
-    
     logout(request)
     return redirect('login')

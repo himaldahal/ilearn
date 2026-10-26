@@ -1,0 +1,99 @@
+/* iLearn design tokens and shared components */
+:root {
+    --bg: #0e1014;
+    --surface: #161a21;
+    --surface-2: #1d222b;
+    --border: #272d38;
+    --text: #e8eaed;
+    --muted: #9aa3b2;
+    --accent: #6366f1;
+    --accent-hover: #5558e6;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --radius: 12px;
+
+    /* legacy names still used by older templates */
+    --primary-color: var(--accent);
+    --secondary-color: var(--accent);
+    --dark-bg: var(--bg);
+    --card-bg: var(--surface);
+    --input-bg: var(--surface-2);
+    --text-primary: var(--text);
+    --text-secondary: var(--muted);
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+.text-secondary { color: var(--muted) !important; }
+
+/* buttons */
+.btn-accent, .btn-custom {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: .6rem 1.2rem;
+    transition: background .15s ease, border-color .15s ease;
+}
+.btn-accent:hover, .btn-custom:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 500;
+    border-radius: 10px;
+    padding: .6rem 1.2rem;
+    transition: background .15s ease;
+}
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* cards and forms */
+.card-surface { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+
+.form-label { color: var(--muted); font-weight: 500; font-size: .875rem; margin-bottom: .4rem; }
+.form-control {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    padding: .65rem .9rem;
+    border-radius: 10px;
+}
+.form-control:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 3px rgba(99, 102, 241, .25) !important; }
+.form-control::placeholder { color: #6b7385; }
+
+/* alerts and modals */
+.alert { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text); }
+.alert-success { border-color: rgba(34, 197, 94, .4); color: #4ade80; background: rgba(34, 197, 94, .08); }
+.alert-danger, .alert-error { border-color: rgba(239, 68, 68, .4); color: #f87171; background: rgba(239, 68, 68, .08); }
+.alert .btn-close, .modal .btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: .7; }
+.modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); }
+.modal-header, .modal-footer { border-color: var(--border); }
+
+/* site navbar */
+.site-nav { background: var(--bg); border-bottom: 1px solid var(--border); padding: .75rem 0; }
+.site-nav .brand { display: inline-flex; align-items: center; gap: .5rem; color: var(--text); font-weight: 700; font-size: 1.2rem; text-decoration: none; letter-spacing: -.01em; }
+.site-nav .brand i { color: var(--accent); font-size: 1.4rem; }
+.nav-icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: 10px; color: var(--muted);
+    border: 1px solid var(--border); text-decoration: none; transition: background .15s ease, color .15s ease;
+}
+.nav-icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.nav-link-plain { color: var(--muted); text-decoration: none; font-weight: 500; padding: .4rem .75rem; border-radius: 8px; }
+.nav-link-plain:hover { color: var(--text); background: var(--surface-2); }
+.profile-avatar { border: 2px solid var(--border); padding: 2px; }
+.navbar-profile-dropdown { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem; min-width: 220px; }
+.navbar-profile-dropdown .dropdown-item { color: var(--text); border-radius: 8px; padding: .55rem .75rem; }
+.navbar-profile-dropdown .dropdown-item:hover { background: var(--surface-2); }
+.navbar-profile-dropdown .dropdown-divider { border-color: var(--border); }
+.profile-name { color: var(--muted); font-size: .85rem; padding: .5rem .75rem; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

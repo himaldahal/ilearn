@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load form_tags %}
+
+{% block head %}
+<style>
+.auth-wrap { min-height: calc(100vh - 62px); display: flex; align-items: center; padding: 2.5rem 0; }
+.auth-aside h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.auth-points { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; gap: 1.1rem; }
+.auth-points li { display: flex; gap: .9rem; align-items: flex-start; color: var(--muted); }
+.auth-points i {
+    flex: none; width: 38px; height: 38px; display: grid; place-items: center;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; color: var(--accent);
+}
+.auth-points strong { display: block; color: var(--text); font-weight: 600; }
+.auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2.25rem; }
+.auth-card h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; }
+
+.password-wrap { position: relative; }
+.password-wrap .form-control { padding-right: 3rem; }
+.password-toggle {
+    position: absolute; top: 50%; right: .35rem; transform: translateY(-50%);
+    width: 2.3rem; height: 2.3rem; border: 0; background: transparent;
+    color: var(--muted); border-radius: 8px; transition: color .15s ease, background .15s ease;
+}
+.password-toggle:hover { color: var(--text); background: var(--border); }
+.field-error { color: #f87171; font-size: .85rem; margin-top: .35rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include 'components/navbar.html' %}
+
+<main class="container auth-wrap">
+    <div class="row w-100 mx-0 g-5 align-items-center justify-content-center">
+        <div class="col-lg-5 d-none d-lg-block auth-aside">
+            <h1>Study together,<br>keep every note in one place.</h1>
+            <ul class="auth-points">
+                <li><i class="bi bi-people"></i><span><strong>Shared projects</strong>Invite classmates by email and read together.</span></li>
+                <li><i class="bi bi-file-earmark-pdf"></i><span><strong>PDF reader built in</strong>Upload lectures and open them next to your notes.</span></li>
+                <li><i class="bi bi-journal-text"></i><span><strong>Private notes per file</strong>Write your own notes and see what others added.</span></li>
+            </ul>
+        </div>
+
+        <div class="col-md-8 col-lg-5 col-xl-4">
+            <div class="auth-card">
+                <h2>{% block heading %}{% endblock %}</h2>
+                <p class="text-secondary mb-4">{% block subheading %}{% endblock %}</p>
+
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+
+                <form method="post" action="" novalidate>
+                    {% csrf_token %}
+                    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">{{ form.non_field_errors|join:" " }}</div>
+                    {% endif %}
+
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% if field.field.widget.input_type == 'password' %}
+                                <div class="password-wrap">
+                                    {{ field|add_class:"form-control" }}
+                                    <button type="button" class="password-toggle" aria-label="Show password" aria-pressed="false" data-target="{{ field.id_for_label }}">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            {% else %}
+                                {{ field|add_class:"form-control" }}
+                            {% endif %}
+                            {% if field.errors %}<div class="field-error">{{ field.errors|join:", " }}</div>{% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn-accent w-100 mt-2 py-2">{% block submit %}{% endblock %}</button>
+                    <p class="text-center text-secondary mt-4 mb-0">{% block switch %}{% endblock %}</p>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block script %}
+<script>
+document.querySelectorAll('.password-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var input = document.getElementById(btn.dataset.target);
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-pressed', show);
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        input.focus();
+    });
+});
+</script>
+{% endblock %}
